@@ -203,5 +203,66 @@ class LogistikitaController extends BaseController {
         $logs = $this->pengirimanModel->getSystemLogs();
         $this->sendResponse('success', 'System logs retrieved', $logs);
     }
+
+    public function batalkanPengiriman() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->sendResponse('error', 'Invalid request method.');
+        }
+
+        $data = $this->getRequestData();
+        if (empty($data['resi']) || empty($data['email'])) {
+            $this->sendResponse('error', 'Resi dan email pengguna diperlukan.');
+        }
+
+        $result = $this->pengirimanModel->cancelShipment($data['resi'], $data['email']);
+        if ($result['status'] === 'success') {
+            $this->sendResponse('success', $result['message'], $result);
+        } else if ($result['status'] === 'warning') {
+            $this->sendResponse('success', $result['message'], $result);
+        } else {
+            $this->sendResponse('error', $result['message']);
+        }
+    }
+
+    public function beriTip() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->sendResponse('error', 'Invalid request method.');
+        }
+
+        $data = $this->getRequestData();
+        if (empty($data['resi']) || empty($data['amount']) || empty($data['email'])) {
+            $this->sendResponse('error', 'Resi, nominal tip, dan email pengguna diperlukan.');
+        }
+
+        $result = $this->pengirimanModel->addTip($data['resi'], $data['amount'], $data['email']);
+        if ($result['status'] === 'success') {
+            $this->sendResponse('success', $result['message']);
+        } else {
+            $this->sendResponse('error', $result['message']);
+        }
+    }
+
+    public function getPembukuan() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            $this->sendResponse('error', 'Invalid request method.');
+        }
+        $data = $this->pengirimanModel->getPembukuanList();
+        $this->sendResponse('success', 'Daftar pembukuan berhasil diambil.', $data);
+    }
+
+    public function getSmartBankBalance() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            $this->sendResponse('error', 'Invalid request method.');
+        }
+        if (empty($_GET['email'])) {
+            $this->sendResponse('error', 'Email diperlukan.');
+        }
+        $res = SmartBank::getBalance($_GET['email']);
+        if ($res['status'] === 'success') {
+            $this->sendResponse('success', 'Saldo berhasil diambil.', $res);
+        } else {
+            $this->sendResponse('error', 'Gagal memproses saldo SmartBank.');
+        }
+    }
 }
 ?>

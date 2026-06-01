@@ -647,6 +647,7 @@ function loadAdminData() {
 
     loadUsers();
     loadSystemLogs();
+    loadBookkeepingData();
 }
 
 
@@ -893,3 +894,286 @@ function onScanSuccess(decodedText, decodedResult) {
 function onScanFailure(error) {
     // Diabaikan karena scanner akan terus membaca frame demi frame
 }
+
+// ==========================================
+// CORPORATE BOOKKEEPING & PDF EXPORT LOGIC
+// ==========================================
+let bookkeepingDataGlobal = [];
+
+function loadBookkeepingData() {
+    fetch('http://localhost/logistikita/index.php?request=api/logistikita/pembukuan_perusahaan')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                bookkeepingDataGlobal = data.data;
+                const tbody = document.getElementById('bookkeepingTableBody');
+                if (tbody) tbody.innerHTML = '';
+
+                let totalPemasukan = 0;
+                let totalPengeluaran = 0;
+                let totalServiceFee = 0;
+
+                data.data.forEach(item => {
+                    const amount = parseFloat(item.jumlah);
+                    if (item.jenis === 'pemasukan') {
+                        totalPemasukan += amount;
+                    } else if (item.jenis === 'pengeluaran') {
+                        totalPengeluaran += amount;
+                    }
+
+                    if (item.kategori === 'pajak_layanan') {
+                        totalServiceFee += amount;
+                    }
+
+                    let badgeStatus = '';
+                    if (item.status_barang === 'masuk_sistem') {
+                        badgeStatus = '<span class="status-pill status-pending">Masuk Sistem</span>';
+                    } else if (item.status_barang === 'transit_hub') {
+                        badgeStatus = '<span class="status-pill status-processing">Transit Hub</span>';
+                    } else if (item.status_barang === 'sedang_dikirim') {
+                        badgeStatus = '<span class="status-pill status-processing" style="background-color: #3b82f6; color: white;">Sedang Dikirim</span>';
+                    } else if (item.status_barang === 'diterima_konsumen') {
+                        badgeStatus = '<span class="status-pill status-success">Diterima Konsumen</span>';
+                    } else if (item.status_barang === 'dibatalkan') {
+                        badgeStatus = '<span class="status-pill status-danger" style="background-color: #ef4444; color: white;">Dibatalkan</span>';
+                    } else {
+                        badgeStatus = `<span class="status-pill">${item.status_barang}</span>`;
+                    }
+
+                    let typeBadge = item.jenis === 'pemasukan' 
+                        ? '<span style="color: #10b981; font-weight: 800;"><i class="fas fa-arrow-down"></i> Pemasukan</span>' 
+                        : '<span style="color: #ef4444; font-weight: 800;"><i class="fas fa-arrow-up"></i> Pengeluaran</span>';
+
+                    const dateObj = new Date(item.created_at);
+                    const timeStr = `${dateObj.getDate()}/${dateObj.getMonth() + 1} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+
+                    if (tbody) {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${timeStr}</td>
+                                <td><span class="text-bold">${item.resi}</span></td>
+                                <td>${item.penerima_nama}</td>
+                                <td>${badgeStatus}</td>
+                                <td><span class="status-pill" style="background: #f1f5f9; color: #475569; font-weight: 700;">${item.kategori.toUpperCase()}</span></td>
+                                <td>${typeBadge}</td>
+                                <td class="text-bold ${item.jenis === 'pemasukan' ? 'text-success' : 'text-danger'}">
+                                    ${item.jumlah > 0 ? `Rp ${amount.toLocaleString('id-ID')}` : '-'}
+                                </td>
+                                <td style="font-size: 0.85rem; color: #64748b;">${item.keterangan}</td>
+                            </tr>
+                        `;
+                    }
+                });
+
+                if (data.data.length === 0 && tbody) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">Belum ada catatan pembukuan.</td></tr>';
+                }
+
+                // Update KPI Metrics in Finance View
+                const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+                
+                const balanceVal = totalPemasukan - totalPengeluaran;
+                const balanceEl = document.getElementById('finance-company-balance');
+                if (balanceEl) balanceEl.innerText = formatter.format(balanceVal);
+
+                const expenseEl = document.getElementById('finance-total-expenses');
+                if (expenseEl) expenseEl.innerText = formatter.format(totalPengeluaran);
+
+                const feeEl = document.getElementById('finance-total-fee');
+                if (feeEl) feeEl.innerText = formatter.format(totalServiceFee);
+
+                const grossEl = document.getElementById('finance-gross');
+                if (grossEl) grossEl.innerText = formatter.format(totalPemasukan);
+            }
+        })
+        .catch(err => console.error("Error loading bookkeeping data:", err));
+}
+
+function exportBookkeepingToPDF() {
+    if (bookkeepingDataGlobal.length === 0) {
+        Swal.fire('Info', 'Tidak ada data pembukuan untuk diekspor.', 'info');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4');
+
+    // 1. Add Header (Kop Surat)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(225, 29, 72); // Brand Red Color
+    doc.text("LogistiKita Enterprise", 14, 20);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Komplek Logistik Nasional Blok B1, Jakarta, Indonesia", 14, 25);
+    doc.text("Email: finance@logistikita.com | Web: www.logistikita.com", 14, 29);
+
+    // Line separator
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.line(14, 32, 282, 32);
+
+    // 2. Title & Date
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42);
+    doc.text("LAPORAN BUKU BESAR & PEMBUKUAN PERUSAHAAN", 14, 42);
+
+    const now = new Date();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Tanggal Cetak: ${now.toLocaleDateString('id-ID')} ${now.toLocaleTimeString('id-ID')}`, 14, 47);
+
+    // 3. Prepare data for Table
+    const headers = [["Waktu", "Resi", "Penerima", "Status Barang", "Kategori", "Jenis", "Jumlah", "Keterangan"]];
+    const rows = bookkeepingDataGlobal.map(item => {
+        const dateObj = new Date(item.created_at);
+        const timeStr = `${dateObj.getDate()}/${dateObj.getMonth() + 1}/${dateObj.getFullYear()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+        const amountStr = item.jumlah > 0 ? `Rp ${parseFloat(item.jumlah).toLocaleString('id-ID')}` : 'Rp 0';
+        return [
+            timeStr,
+            item.resi,
+            item.penerima_nama,
+            item.status_barang.toUpperCase(),
+            item.kategori.toUpperCase(),
+            item.jenis.toUpperCase(),
+            amountStr,
+            item.keterangan
+        ];
+    });
+
+    // 4. Draw AutoTable
+    doc.autoTable({
+        head: headers,
+        body: rows,
+        startY: 53,
+        theme: 'striped',
+        styles: {
+            font: 'helvetica',
+            fontSize: 9,
+            cellPadding: 3
+        },
+        headStyles: {
+            fillColor: [15, 23, 42],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+        },
+        columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 35 },
+            2: { cellWidth: 30 },
+            3: { cellWidth: 30 },
+            4: { cellWidth: 25 },
+            5: { cellWidth: 25 },
+            6: { cellWidth: 30, halign: 'right' },
+            7: { cellWidth: 'auto' }
+        }
+    });
+
+    // Save the PDF
+    doc.save(`Laporan_Pembukuan_LogistiKita_${now.toISOString().slice(0,10)}.pdf`);
+}
+
+function exportFinanceSummaryToPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+
+    // 1. Add Header (Kop Surat)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(225, 29, 72);
+    doc.text("LogistiKita Enterprise", 14, 20);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Komplek Logistik Nasional Blok B1, Jakarta, Indonesia", 14, 25);
+    doc.text("Email: finance@logistikita.com | Web: www.logistikita.com", 14, 29);
+
+    // Line separator
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.line(14, 32, 196, 32);
+
+    // 2. Title & Date
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42);
+    doc.text("LAPORAN RINGKASAN KEUANGAN & NERACA KAS", 14, 42);
+
+    const now = new Date();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Tanggal Cetak: ${now.toLocaleDateString('id-ID')} ${now.toLocaleTimeString('id-ID')}`, 14, 47);
+
+    // 3. Financial Summary Card values
+    let totalPemasukan = 0;
+    let totalPengeluaran = 0;
+    let totalServiceFee = 0;
+
+    bookkeepingDataGlobal.forEach(item => {
+        const amount = parseFloat(item.jumlah);
+        if (item.jenis === 'pemasukan') {
+            totalPemasukan += amount;
+        } else if (item.jenis === 'pengeluaran') {
+            totalPengeluaran += amount;
+        }
+        if (item.kategori === 'pajak_layanan') {
+            totalServiceFee += amount;
+        }
+    });
+
+    const saldoBersih = totalPemasukan - totalPengeluaran;
+
+    const summaryData = [
+        ["Indikator Keuangan", "Nilai Kas (Rupiah)", "Keterangan Operasional"],
+        ["Uang Yang Dimiliki (Saldo Bersih)", `Rp ${saldoBersih.toLocaleString('id-ID')}`, "Kas internal perusahaan saat ini"],
+        ["Total Pengeluaran (Beban)", `Rp ${totalPengeluaran.toLocaleString('id-ID')}`, "Komisi kurir, refund, tip diteruskan, pajak"],
+        ["Total Pendapatan Layanan", `Rp ${totalServiceFee.toLocaleString('id-ID')}`, "Fee 5% dari pengiriman terselesaikan"],
+        ["Gross Revenue (Omset)", `Rp ${totalPemasukan.toLocaleString('id-ID')}`, "Akumulasi seluruh transaksi masuk"]
+    ];
+
+    doc.autoTable({
+        head: [summaryData[0]],
+        body: summaryData.slice(1),
+        startY: 55,
+        theme: 'grid',
+        styles: {
+            font: 'helvetica',
+            fontSize: 10,
+            cellPadding: 4
+        },
+        headStyles: {
+            fillColor: [225, 29, 72],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+        },
+        columnStyles: {
+            0: { cellWidth: 70, fontStyle: 'bold' },
+            1: { cellWidth: 50, halign: 'right', fontStyle: 'bold' },
+            2: { cellWidth: 'auto' }
+        }
+    });
+
+    const finalY = doc.lastAutoTable.finalY + 25;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    doc.text("Dilaporkan Oleh,", 14, finalY);
+    doc.text("Disetujui Oleh,", 140, finalY);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Fiqry F.", 14, finalY + 20);
+    doc.text("System Administrator", 14, finalY + 24);
+
+    doc.text("Direktur Utama", 140, finalY + 20);
+    doc.text("LogistiKita Corp.", 140, finalY + 24);
+
+    doc.save(`Ringkasan_Keuangan_LogistiKita_${now.toISOString().slice(0,10)}.pdf`);
+}
+
+window.exportBookkeepingToPDF = exportBookkeepingToPDF;
+window.exportFinanceSummaryToPDF = exportFinanceSummaryToPDF;
+window.loadBookkeepingData = loadBookkeepingData;

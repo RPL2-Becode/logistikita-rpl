@@ -340,6 +340,20 @@ function loadUserData() {
     const pengirimNama = document.getElementById('booking-pengirim-nama');
     if (pengirimNama) pengirimNama.value = user.name;
 
+    // Fetch SmartBank Balance
+    fetch(`http://localhost/logistikita/index.php?request=api/smartbank/saldo&email=${user.email}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const balanceFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+                const balanceEl = document.getElementById('smartbank-balance');
+                if (balanceEl) {
+                    balanceEl.innerText = balanceFormatter.format(data.data.balance);
+                }
+            }
+        })
+        .catch(err => console.error("Error fetching balance:", err));
+
     // Fetch History
     fetch(`http://localhost/logistikita/index.php?request=api/logistikita/daftar_pengiriman&type=user&user_id=${user.id}`)
         .then(res => res.json())
@@ -750,169 +764,195 @@ function renderDashboard(data) {
     });
 }
 
-function openDetailModal(resi) {
-    let shipment = dummyShipments.find(item => item.resi === resi);
-    if (!shipment && typeof dummyHistoryShipments !== 'undefined') {
-        shipment = dummyHistoryShipments.find(item => item.resi === resi);
-    }
-    if (!shipment) return;
-
-    currentActiveResi = shipment.resi;
-
-    document.getElementById('modal-resi').textContent = shipment.resi;
-    document.getElementById('modal-penerima').textContent = shipment.penerima_nama;
-    document.getElementById('modal-alamat').textContent = shipment.penerima_alamat;
-    document.getElementById('modal-berat').textContent = shipment.berat;
-    document.getElementById('modal-layanan').textContent = shipment.layanan;
-
-    const timelineContainer = document.getElementById('modal-timeline');
-    if (timelineContainer) {
-        timelineContainer.innerHTML = '';
-        shipment.riwayat.forEach((log, index) => {
-            const isLast = index === shipment.riwayat.length - 1;
-            const timelineNodeHTML = `
-                <div style="position: relative; padding-left: 28px; padding-bottom: ${isLast ? '0' : '24px'};">
-                    ${!isLast ? '<div style="position: absolute; left: 6px; top: 20px; bottom: 0; width: 2px; background-color: #e2e8f0;"></div>' : ''}
-                    
-                    <div style="position: absolute; left: 0; top: 4px; width: 14px; height: 14px; background-color: white; border: 3px solid #3b82f6; border-radius: 50%; z-index: 10;"></div>
-                    
-                    <div style="background: ${index === shipment.riwayat.length - 1 ? '#eff6ff' : 'transparent'}; padding: ${index === shipment.riwayat.length - 1 ? '12px' : '0'}; border-radius: 8px; border: ${index === shipment.riwayat.length - 1 ? '1px solid #bfdbfe' : 'none'};">
-                        <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 700; color: #0f172a;">${log.status}</h4>
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <span style="font-size: 0.85rem; color: #475569; display: flex; align-items: center; gap: 6px;">
-                                <i class="fas fa-map-marker-alt" style="color: #94a3b8; width: 14px; text-align: center;"></i> ${log.lokasi}
-                            </span>
-                            <span style="font-size: 0.8rem; color: #64748b; display: flex; align-items: center; gap: 6px;">
-                                <i class="far fa-clock" style="color: #94a3b8; width: 14px; text-align: center;"></i> ${log.waktu_update}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            timelineContainer.insertAdjacentHTML('beforeend', timelineNodeHTML);
-        });
-    }
-
-    // Switch to Full Page Tab
-    const panes = document.querySelectorAll('.tab-pane');
-    panes.forEach(p => p.classList.remove('active'));
-    const detailTab = document.getElementById('tracking-detail');
-    if (detailTab) {
-        detailTab.classList.add('active');
-        window.scrollTo({ top: 300, behavior: 'smooth' });
-    }
-
-    // LEAFLET MAP INITIALIZATION
-    if (typeof L !== 'undefined') {
-        const lastHistory = shipment.riwayat[shipment.riwayat.length - 1];
-        const firstHistory = shipment.riwayat[0];
-        const destLat = shipment.tujuan_lat;
-        const destLng = shipment.tujuan_lng;
-
-        if (!leafletMap) {
-            leafletMap = L.map('leaflet-map').setView([lastHistory.lat, lastHistory.lng], 10);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-                maxZoom: 19
-            }).addTo(leafletMap);
-        } else {
-            leafletMap.setView([lastHistory.lat, lastHistory.lng], 10);
-            // Clear existing markers and routing
-            mapMarkers.forEach(m => leafletMap.removeLayer(m));
-            mapMarkers = [];
-            if (polylineLayer) {
-                leafletMap.removeControl(polylineLayer);
-                polylineLayer = null;
-            }
-        }
-
-        // Must invalidate size because tab was hidden
-        setTimeout(() => {
-            leafletMap.invalidateSize();
-        }, 100);
-
-        // Icons Definition (Custom HTML markers)
-        const originIcon = L.divIcon({
-            html: '<div style="background:#f59e0b; color:white; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; box-shadow:0 4px 6px rgba(0,0,0,0.3); border:2px solid white;"><i class="fas fa-warehouse"></i></div>',
-            className: '', iconSize: [36, 36], iconAnchor: [18, 18]
-        });
-
-        const destIcon = L.divIcon({
-            html: '<div style="background:#10b981; color:white; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; box-shadow:0 4px 6px rgba(0,0,0,0.3); border:2px solid white;"><i class="fas fa-home"></i></div>',
-            className: '', iconSize: [36, 36], iconAnchor: [18, 18]
-        });
-
-        const truckIcon = L.divIcon({
-            html: '<div style="background:#3b82f6; color:white; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; box-shadow:0 6px 10px rgba(0,0,0,0.4); border:3px solid white; animation: pulse 2s infinite;"><i class="fas fa-truck-fast"></i></div>',
-            className: '', iconSize: [44, 44], iconAnchor: [22, 22]
-        });
-
-        // Create Waypoints for Routing (Follow actual roads)
-        const waypoints = shipment.riwayat.map(h => L.latLng(h.lat, h.lng));
-        if (destLat && destLng && lastHistory.status !== 'delivered') {
-            waypoints.push(L.latLng(destLat, destLng));
-        }
-
-        // Custom Routing to snap to roads but use our own markers
-        if (typeof L.Routing !== 'undefined') {
-            polylineLayer = L.Routing.control({
-                waypoints: waypoints,
-                createMarker: function () { return null; }, // Disable default markers
-                routeWhileDragging: false,
-                addWaypoints: false,
-                fitSelectedRoutes: true,
-                showAlternatives: false,
-                lineOptions: {
-                    styles: [{ color: '#3b82f6', opacity: 0.8, weight: 6 }]
-                },
-                show: false // Hide the textual itinerary panel
-            }).addTo(leafletMap);
-        } else {
-            // Fallback to straight polyline if routing machine fails to load
-            const latlngs = waypoints.map(wp => [wp.lat, wp.lng]);
-            polylineLayer = L.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.7, dashArray: '10, 10' }).addTo(leafletMap);
-            setTimeout(() => {
-                leafletMap.fitBounds(polylineLayer.getBounds(), { padding: [50, 50] });
-            }, 200);
-        }
-
-        // Add Origin Marker manually
-        const mOrigin = L.marker([firstHistory.lat, firstHistory.lng], { icon: originIcon, zIndexOffset: 100 })
-            .bindPopup(`<b>Asal:</b> ${firstHistory.lokasi}`).addTo(leafletMap);
-        mapMarkers.push(mOrigin);
-
-        // Add Destination Marker manually
-        if (destLat && destLng) {
-            const mDest = L.marker([destLat, destLng], { icon: destIcon, zIndexOffset: 100 })
-                .bindPopup(`<b>Tujuan:</b> ${shipment.penerima_alamat}`).addTo(leafletMap);
-            mapMarkers.push(mDest);
-        }
-
-        // Add Truck (Current) Marker manually
-        const mTruck = L.marker([lastHistory.lat, lastHistory.lng], { icon: truckIcon, zIndexOffset: 1000 })
-            .bindPopup(`<b>Posisi Terkini:</b> ${lastHistory.lokasi}<br>Status: ${lastHistory.status}`).addTo(leafletMap);
-        mapMarkers.push(mTruck);
-        mTruck.openPopup();
-
-        // Inject CSS to completely hide the leaflet routing container UI box
-        const style = document.createElement('style');
-        style.innerHTML = '.leaflet-routing-container { display: none !important; }';
-        document.head.appendChild(style);
+function getCoordinatesForLocation(lokasi) {
+    const loc = lokasi.toLowerCase();
+    if (loc.includes('jakarta') || loc.includes('sistem') || loc.includes('hq') || loc.includes('jkt')) {
+        return { lat: -6.2088, lng: 106.8456 };
+    } else if (loc.includes('cikarang')) {
+        return { lat: -6.3475, lng: 107.1955 };
+    } else if (loc.includes('surabaya') || loc.includes('sby')) {
+        return { lat: -7.2504, lng: 112.7688 };
+    } else if (loc.includes('bandung') || loc.includes('bdg')) {
+        return { lat: -6.9175, lng: 107.6191 };
+    } else {
+        // Fallback: acak teratur sekitar Bandung/Jakarta
+        return { lat: -6.5 + (Math.random() - 0.5) * 0.2, lng: 107.5 + (Math.random() - 0.5) * 0.2 };
     }
 }
 
-// Menambahkan fungsi penutup modal yang hilang sebelumnya
+function openDetailModal(resi) {
+    const userSession = localStorage.getItem('user');
+    if (!userSession) return;
+    const user = JSON.parse(userSession);
+
+    Swal.fire({
+        title: 'Memuat...',
+        text: 'Mengambil riwayat tracking dari database...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    fetch('http://localhost/logistikita/index.php?request=api/logistikita/tracking_status&resi=' + resi)
+        .then(res => res.json())
+        .then(data => {
+            Swal.close();
+            if (data.status === 'success') {
+                const shipment = data.data;
+                currentActiveResi = shipment.resi;
+
+                document.getElementById('modal-resi').textContent = shipment.resi;
+                document.getElementById('modal-penerima').textContent = shipment.penerima_nama;
+                document.getElementById('modal-alamat').textContent = shipment.penerima_alamat;
+                document.getElementById('modal-berat').textContent = shipment.berat + ' kg';
+                document.getElementById('modal-layanan').textContent = shipment.nama_layanan || 'Reguler';
+
+                const cancelBtn = document.getElementById('btn-cancel-order');
+                if (cancelBtn) {
+                    if (shipment.status === 'pending' || shipment.status === 'menunggu_pickup') {
+                        cancelBtn.style.display = 'block';
+                    } else {
+                        cancelBtn.style.display = 'none';
+                    }
+                }
+
+                const timelineContainer = document.getElementById('modal-timeline');
+                if (timelineContainer) {
+                    timelineContainer.innerHTML = '';
+                    
+                    if (!shipment.riwayat || shipment.riwayat.length === 0) {
+                        timelineContainer.innerHTML = '<p style="color:#64748b; padding: 10px; text-align:center;">Belum ada riwayat update.</p>';
+                    } else {
+                        shipment.riwayat.forEach((log, index) => {
+                            const isLast = index === 0; // Karena terurut DESC (terbaru di atas)
+                            const isFirst = index === shipment.riwayat.length - 1;
+                            const timelineNodeHTML = `
+                                <div style="position: relative; padding-left: 28px; padding-bottom: ${isFirst ? '0' : '24px'}; text-align: left;">
+                                    ${!isFirst ? '<div style="position: absolute; left: 6px; top: 20px; bottom: 0; width: 2px; background-color: #e2e8f0;"></div>' : ''}
+                                    
+                                    <div style="position: absolute; left: 0; top: 4px; width: 14px; height: 14px; background-color: white; border: 3px solid #3b82f6; border-radius: 50%; z-index: 10;"></div>
+                                    
+                                    <div style="background: ${index === 0 ? '#eff6ff' : 'transparent'}; padding: ${index === 0 ? '12px' : '0'}; border-radius: 8px; border: ${index === 0 ? '1px solid #bfdbfe' : 'none'};">
+                                        <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 700; color: #0f172a;">${log.status.toUpperCase()}</h4>
+                                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                                            <span style="font-size: 0.85rem; color: #475569; display: flex; align-items: center; gap: 6px;">
+                                                <i class="fas fa-map-marker-alt" style="color: #94a3b8; width: 14px; text-align: center;"></i> ${log.lokasi}
+                                            </span>
+                                            <span style="font-size: 0.85rem; color: #64748b; font-weight: 600; display: block; margin-top: 2px;">
+                                                ${log.keterangan}
+                                            </span>
+                                            <span style="font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; gap: 6px;">
+                                                <i class="far fa-clock" style="color: #94a3b8; width: 14px; text-align: center;"></i> ${log.waktu_update}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            timelineContainer.insertAdjacentHTML('beforeend', timelineNodeHTML);
+                        });
+                    }
+                }
+
+                // Switch to Full Page Tab
+                const panes = document.querySelectorAll('.tab-pane');
+                panes.forEach(p => p.classList.remove('active'));
+                const detailTab = document.getElementById('tracking-detail');
+                if (detailTab) {
+                    detailTab.classList.add('active');
+                    window.scrollTo({ top: 300, behavior: 'smooth' });
+                }
+
+                // LEAFLET MAP INITIALIZATION
+                if (typeof L !== 'undefined' && shipment.riwayat && shipment.riwayat.length > 0) {
+                    const mappedRiwayat = shipment.riwayat.map(h => {
+                        const coords = getCoordinatesForLocation(h.lokasi);
+                        return { ...h, lat: coords.lat, lng: coords.lng };
+                    }).reverse();
+
+                    const lastHistory = mappedRiwayat[mappedRiwayat.length - 1];
+                    const firstHistory = mappedRiwayat[0];
+                    const destCoords = getCoordinatesForLocation(shipment.penerima_alamat);
+
+                    if (!leafletMap) {
+                        leafletMap = L.map('leaflet-map').setView([lastHistory.lat, lastHistory.lng], 10);
+                        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                            maxZoom: 19
+                        }).addTo(leafletMap);
+                    } else {
+                        leafletMap.setView([lastHistory.lat, lastHistory.lng], 10);
+                        mapMarkers.forEach(m => leafletMap.removeLayer(m));
+                        mapMarkers = [];
+                        if (polylineLayer) {
+                            leafletMap.removeControl(polylineLayer);
+                            polylineLayer = null;
+                        }
+                    }
+
+                    setTimeout(() => {
+                        leafletMap.invalidateSize();
+                    }, 100);
+
+                    const originIcon = L.divIcon({
+                        html: '<div style="background:#f59e0b; color:white; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; box-shadow:0 4px 6px rgba(0,0,0,0.3); border:2px solid white;"><i class="fas fa-warehouse"></i></div>',
+                        className: '', iconSize: [36, 36], iconAnchor: [18, 18]
+                    });
+
+                    const destIcon = L.divIcon({
+                        html: '<div style="background:#10b981; color:white; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; box-shadow:0 4px 6px rgba(0,0,0,0.3); border:2px solid white;"><i class="fas fa-home"></i></div>',
+                        className: '', iconSize: [36, 36], iconAnchor: [18, 18]
+                    });
+
+                    const truckIcon = L.divIcon({
+                        html: '<div style="background:#3b82f6; color:white; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; box-shadow:0 6px 10px rgba(0,0,0,0.4); border:3px solid white; animation: pulse 2s infinite;"><i class="fas fa-truck-fast"></i></div>',
+                        className: '', iconSize: [44, 44], iconAnchor: [22, 22]
+                    });
+
+                    const waypoints = mappedRiwayat.map(h => L.latLng(h.lat, h.lng));
+                    if (shipment.status !== 'delivered') {
+                        waypoints.push(L.latLng(destCoords.lat, destCoords.lng));
+                    }
+
+                    const latlngs = waypoints.map(wp => [wp.lat, wp.lng]);
+                    polylineLayer = L.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.7, dashArray: '10, 10' }).addTo(leafletMap);
+                    
+                    try {
+                        leafletMap.fitBounds(polylineLayer.getBounds(), { padding: [50, 50] });
+                    } catch(e) {}
+
+                    const mOrigin = L.marker([firstHistory.lat, firstHistory.lng], { icon: originIcon, zIndexOffset: 100 })
+                        .bindPopup(`<b>Asal:</b> ${firstHistory.lokasi}`).addTo(leafletMap);
+                    mapMarkers.push(mOrigin);
+
+                    if (shipment.status !== 'delivered') {
+                        const mDest = L.marker([destCoords.lat, destCoords.lng], { icon: destIcon, zIndexOffset: 100 })
+                            .bindPopup(`<b>Tujuan:</b> ${shipment.penerima_alamat}`).addTo(leafletMap);
+                        mapMarkers.push(mDest);
+                    }
+
+                    const mTruck = L.marker([lastHistory.lat, lastHistory.lng], { icon: truckIcon, zIndexOffset: 1000 })
+                        .bindPopup(`<b>Posisi Terkini:</b> ${lastHistory.lokasi}<br>Status: ${lastHistory.status.toUpperCase()}`).addTo(leafletMap);
+                    mapMarkers.push(mTruck);
+                    mTruck.openPopup();
+                }
+            } else {
+                Swal.fire('Gagal', 'Gagal memuat status pengiriman: ' + data.message, 'error');
+            }
+        })
+        .catch(err => {
+            Swal.close();
+            Swal.fire('Kesalahan', 'Gagal mengambil data dari server.', 'error');
+        });
+}
+
 function closeDetailModal() {
     backToStatus();
 }
 
 function backToStatus() {
-    // Navigasi kembali ke tab Status Pengiriman
     const panes = document.querySelectorAll('.tab-pane');
     panes.forEach(p => p.classList.remove('active'));
     document.getElementById('status').classList.add('active');
 
-    // Pastikan menu navigasi samping juga ter-update aktifnya
     const tabs = document.querySelectorAll('.hub-tab');
     tabs.forEach(t => t.classList.remove('active'));
     const statusTab = document.querySelector('.hub-tab[data-target="status"]');
@@ -923,43 +963,66 @@ function backToStatus() {
 
 function cancelOrder() {
     if (!currentActiveResi) return;
-    const confirmation = window.confirm('PERINGATAN: Apakah Anda yakin ingin membatalkan pesanan dengan resi ' + currentActiveResi + '? Tindakan ini tidak dapat dibatalkan.');
-    if (confirmation) {
-        alert('Pesanan ' + currentActiveResi + ' telah berhasil dibatalkan.');
-        closeDetailModal();
-    }
+    
+    const userSession = localStorage.getItem('user');
+    if (!userSession) return;
+    const user = JSON.parse(userSession);
+    
+    Swal.fire({
+        title: 'Batalkan Pengiriman?',
+        text: 'Apakah Anda yakin ingin membatalkan pengiriman dengan resi ' + currentActiveResi + '? Saldo Anda akan dikembalikan (refund) via SmartBank.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Ya, Batalkan!',
+        cancelButtonText: 'Kembali'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Memproses...',
+                text: 'Membatalkan pesanan dan mengurus refund SmartBank...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            
+            fetch('http://localhost/logistikita/index.php?request=api/logistikita/batalkan_pengiriman', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resi: currentActiveResi, email: user.email })
+            })
+            .then(res => res.json())
+            .then(data => {
+                Swal.close();
+                if (data.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil Dibatalkan',
+                        text: data.message,
+                        confirmButtonColor: '#10b981'
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal Membatalkan',
+                        text: data.message,
+                        confirmButtonColor: '#ef4444'
+                    });
+                }
+            })
+            .catch(err => {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kesalahan',
+                    text: 'Gagal terhubung ke server.'
+                });
+            });
+        }
+    });
 }
-
-// Run on load
-document.addEventListener('DOMContentLoaded', () => {
-    loadUserData();
-    // Render the dummy UI data after the API load for demonstration
-    setTimeout(() => {
-        renderDashboard(dummyShipments);
-    }, 1000);
-});
-
-// ================= HISTORY DETAILS & TIPPING =================
-const dummyHistoryShipments = [
-    {
-        resi: "LKT-H9X7Y2",
-        penerima_nama: "Budi Santoso",
-        penerima_alamat: "Jl. Sudirman No. 10, Jakarta Pusat",
-        berat: "5.0 kg",
-        layanan: "Cargo",
-        status: "delivered",
-        riwayat: [
-            { status: "Pending", lokasi: "Sistem", waktu_update: "2026-05-10 08:00", lat: -6.200000, lng: 106.816666 },
-            { status: "Menunggu Pickup", lokasi: "Gudang Utama (Jakarta)", waktu_update: "2026-05-10 09:15", lat: -6.21462, lng: 106.84513 },
-            { status: "Transit", lokasi: "Hub Transit (Bekasi)", waktu_update: "2026-05-10 14:30", lat: -6.2345, lng: 106.9876 },
-            { status: "Delivered", lokasi: "Diterima oleh Yanto (Satpam)", waktu_update: "2026-05-11 10:30", lat: -6.1834, lng: 106.8223 }
-        ],
-        tujuan_lat: -6.1834,
-        tujuan_lng: 106.8223
-    }
-];
-
-let leafletHistoryMap = null;
 
 function openHistoryDetail(resi) {
     openDetailModal(resi);
@@ -1007,15 +1070,12 @@ function showTipDialog(resi) {
         didOpen: () => {
             const btns = document.querySelectorAll('.tip-btn');
             const input = document.getElementById('custom-tip-input');
-            
-            // Tweak cancel button styling explicitly since custom class might need CSS
             const cancelBtn = Swal.getCancelButton();
             if(cancelBtn) {
                 cancelBtn.style.color = '#475569';
                 cancelBtn.style.fontWeight = '700';
             }
             
-            // Hover and click logic for chips
             btns.forEach(btn => {
                 btn.addEventListener('mouseover', () => {
                     if (input.value !== btn.getAttribute('data-val')) {
@@ -1029,26 +1089,19 @@ function showTipDialog(resi) {
                         btn.style.background = 'white';
                     }
                 });
-                
                 btn.addEventListener('click', () => {
-                    // Reset all
                     btns.forEach(b => {
                         b.style.borderColor = '#e2e8f0';
                         b.style.background = 'white';
                         b.style.color = '#475569';
                     });
-                    
-                    // Activate selected
                     btn.style.borderColor = '#10b981';
                     btn.style.background = '#10b98115';
                     btn.style.color = '#10b981';
-                    
-                    // Sync input
                     input.value = btn.getAttribute('data-val');
                 });
             });
 
-            // Update chips if input is typed manually
             input.addEventListener('input', () => {
                 const val = input.value;
                 btns.forEach(b => {
@@ -1074,31 +1127,59 @@ function showTipDialog(resi) {
         }
     }).then((result) => {
         if (result.isConfirmed) {
+            const userSession = localStorage.getItem('user');
+            if (!userSession) return;
+            const user = JSON.parse(userSession);
+
             Swal.fire({
                 title: '<h3 style="font-weight: 800; color: #1e293b; margin-top: 10px;">Memproses...</h3>',
-                text: 'Menghubungkan ke payment gateway aman...',
+                text: 'Memproses pembayaran tip via SmartBank...',
                 allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                    setTimeout(() => {
-                        Swal.fire({
-                            icon: 'success',
-                            title: '<h3 style="font-weight: 800; color: #1e293b; margin-top: 10px;">Transaksi Berhasil!</h3>',
-                            html: `
-                                <div style="margin-top: 5px;">
-                                    <p style="color: #475569; font-size: 1.05rem; line-height: 1.6; margin-bottom: 24px;">
-                                        Terima kasih banyak atas apresiasi Anda!<br>
-                                        Tip sebesar <strong style="color: #10b981; font-size: 1.2rem;">${formatter.format(result.value)}</strong> telah diteruskan ke saldo kurir.
-                                    </p>
-                                </div>
-                            `,
-                            confirmButtonColor: '#10b981',
-                            confirmButtonText: 'Selesai'
-                        }).then(() => {
-                            backToHistoryList();
-                        });
-                    }, 1500);
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            fetch('http://localhost/logistikita/index.php?request=api/logistikita/beri_tip', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resi: resi, amount: result.value, email: user.email })
+            })
+            .then(res => res.json())
+            .then(data => {
+                Swal.close();
+                if (data.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Transaksi Berhasil!',
+                        html: `
+                            <div style="margin-top: 5px;">
+                                <p style="color: #475569; font-size: 1.05rem; line-height: 1.6; margin-bottom: 24px;">
+                                    Terima kasih banyak atas apresiasi Anda!<br>
+                                    Tip sebesar <strong style="color: #10b981; font-size: 1.2rem;">${formatter.format(result.value)}</strong> telah diteruskan ke saldo kurir.
+                                </p>
+                            </div>
+                        `,
+                        confirmButtonColor: '#10b981',
+                        confirmButtonText: 'Selesai'
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Pembayaran Gagal',
+                        text: data.message,
+                        confirmButtonColor: '#ef4444'
+                    });
                 }
+            })
+            .catch(err => {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kesalahan Jaringan',
+                    text: 'Gagal terhubung ke server.',
+                    confirmButtonColor: '#ef4444'
+                });
             });
         }
     });

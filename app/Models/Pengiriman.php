@@ -80,18 +80,66 @@ class Pengiriman {
         $this->conn->query($sql);
     }
 
+    public function addPembukuan($resi, $penerima_nama, $status_barang, $jenis, $kategori, $jumlah, $keterangan) {
+        $resi = $this->conn->real_escape_string($resi);
+        $penerima_nama = $this->conn->real_escape_string($penerima_nama);
+        $status_barang = $this->conn->real_escape_string($status_barang);
+        $jenis = $this->conn->real_escape_string($jenis);
+        $kategori = $this->conn->real_escape_string($kategori);
+        $jumlah = (float)$jumlah;
+        $keterangan = $this->conn->real_escape_string($keterangan);
+
+        $sql = "INSERT INTO pembukuan (resi, penerima_nama, status_barang, jenis, kategori, jumlah, keterangan) 
+                VALUES ('$resi', '$penerima_nama', '$status_barang', '$jenis', '$kategori', $jumlah, '$keterangan')";
+        return $this->conn->query($sql);
+    }
+
     public function updateStatus($resi, $status, $lokasi = '', $keterangan = '') {
         $resi = $this->conn->real_escape_string($resi);
         $status = $this->conn->real_escape_string($status);
         
+        $shipmentRes = $this->conn->query("SELECT * FROM " . $this->table_name . " WHERE resi = '$resi'");
+        if ($shipmentRes->num_rows === 0) {
+            return false;
+        }
+        $shipment = $shipmentRes->fetch_assoc();
+        $id = $shipment['id'];
+        $penerima_nama = $shipment['penerima_nama'];
+        
         $sql = "UPDATE " . $this->table_name . " SET status = '$status' WHERE resi = '$resi'";
-        if ($this->conn->query($sql) === TRUE && $this->conn->affected_rows > 0) {
-            // Dapatkan ID
-            $res = $this->conn->query("SELECT id FROM " . $this->table_name . " WHERE resi = '$resi'");
-            if($res->num_rows > 0) {
-                $id = $res->fetch_assoc()['id'];
-                $this->addRiwayat($id, $status, $lokasi, $keterangan);
+        if ($this->conn->query($sql) === TRUE) {
+            $this->addRiwayat($id, $status, $lokasi, $keterangan);
+            
+            // Log ke Pembukuan
+            $status_barang = 'transit_hub';
+            if ($status === 'delivered') {
+                $status_barang = 'diterima_konsumen';
+            } else if ($status === 'delivery') {
+                $status_barang = 'sedang_dikirim';
+            } else if ($status === 'batal') {
+                $status_barang = 'dibatalkan';
+            } else if ($status === 'menunggu_pickup' || $status === 'pending') {
+                $status_barang = 'masuk_sistem';
             }
+            
+            // Catat log perpindahan barang di pembukuan (jumlah = 0 untuk log status)
+            $this->addPembukuan($resi, $penerima_nama, $status_barang, 'pemasukan', 'ongkir', 0, "Update status menjadi: " . $status . " di " . ($lokasi ?: 'System') . ". Keterangan: " . $keterangan);
+
+            // Jika status menjadi delivered, bayar komisi kurir!
+            if ($status === 'delivered') {
+                $komisi = $shipment['biaya_ongkir'] * 0.1;
+                // Catat pengeluaran komisi kurir
+                $this->addPembukuan($resi, $penerima_nama, 'diterima_konsumen', 'pengeluaran', 'komisi_kurir', $komisi, "Komisi kurir 10% atas resi " . $resi);
+                
+                // Jika ada tip, cairkan tip juga!
+                if ($shipment['tip'] > 0) {
+                    $this->addPembukuan($resi, $penerima_nama, 'diterima_konsumen', 'pengeluaran', 'tip_kurir', $shipment['tip'], "Penerusan tip kurir atas resi " . $resi);
+                    SmartBank::processTransaction($resi, $komisi + $shipment['tip'], 'courier_payout', 'kurir@logistikita.com');
+                } else {
+                    SmartBank::processTransaction($resi, $komisi, 'courier_payout', 'kurir@logistikita.com');
+                }
+            }
+
             return true;
         }
         return false;
@@ -151,7 +199,7 @@ class Pengiriman {
     public function findAllForKurir() {
         $sql = "SELECT p.*, l.nama_layanan FROM " . $this->table_name . " p 
                 LEFT JOIN layanan l ON p.layanan_id = l.id 
-                WHERE p.status IN ('menunggu_pickup', 'pickup', 'transit', 'delivery')
+                WHERE p.status IN ('menunggu_pickup', 'pickup', 'transit', 'delivery', 'delivered')
                 ORDER BY p.created_at DESC";
         $result = $this->conn->query($sql);
         $data = [];
@@ -177,13 +225,98 @@ class Pengiriman {
         $id = (int)$id;
         $sql = "UPDATE " . $this->table_name . " SET is_paid = TRUE, status = 'menunggu_pickup' WHERE id = $id";
         if($this->conn->query($sql)) {
-            // Insert to pembayaran
             $bank_ref = $this->conn->real_escape_string($bank_ref);
             $this->conn->query("INSERT INTO pembayaran (pengiriman_id, bank_ref, amount, payment_type) VALUES ($id, '$bank_ref', $amount, 'payment_logistik')");
-            $this->addRiwayat($id, 'menunggu_pickup', 'Sistem', 'Pembayaran terkonfirmasi');
+            $this->addRiwayat($id, 'menunggu_pickup', 'Sistem', 'Pembayaran terkonfirmasi (Ref: ' . $bank_ref . ')');
+            
+            $shipment = $this->findById($id);
+            if ($shipment) {
+                // Pemasukan ongkir
+                $this->addPembukuan($shipment['resi'], $shipment['penerima_nama'], 'masuk_sistem', 'pemasukan', 'ongkir', $amount, 'Pemasukan ongkos kirim (Ref: ' . $bank_ref . ')');
+                
+                // Pengeluaran pajak layanan 5% disetorkan ke SmartBank
+                $feeLayanan = $shipment['biaya_layanan'];
+                $this->addPembukuan($shipment['resi'], $shipment['penerima_nama'], 'masuk_sistem', 'pengeluaran', 'pajak_layanan', $feeLayanan, 'Setoran pajak layanan 5% ke ekosistem');
+                
+                SmartBank::processTransaction($shipment['resi'], $feeLayanan, 'tax_disbursement', 'admin@logistikita.com');
+            }
             return true;
         }
         return false;
+    }
+
+    public function cancelShipment($resi, $user_email) {
+        $resi = $this->conn->real_escape_string($resi);
+        $shipmentRes = $this->conn->query("SELECT * FROM " . $this->table_name . " WHERE resi = '$resi'");
+        if ($shipmentRes->num_rows === 0) {
+            return ['status' => 'error', 'message' => 'Pesanan tidak ditemukan.'];
+        }
+        $shipment = $shipmentRes->fetch_assoc();
+        
+        if ($shipment['status'] !== 'pending' && $shipment['status'] !== 'menunggu_pickup') {
+            return ['status' => 'error', 'message' => 'Pesanan tidak dapat dibatalkan karena sudah dalam perjalanan atau terkirim.'];
+        }
+
+        $sql = "UPDATE " . $this->table_name . " SET status = 'batal' WHERE id = " . $shipment['id'];
+        if ($this->conn->query($sql)) {
+            $this->addRiwayat($shipment['id'], 'batal', 'Sistem', 'Pesanan dibatalkan oleh pengguna.');
+            $this->addPembukuan($resi, $shipment['penerima_nama'], 'dibatalkan', 'pemasukan', 'ongkir', 0, 'Pesanan dibatalkan oleh pengguna');
+
+            if ($shipment['is_paid']) {
+                $total_bayar = $shipment['biaya_ongkir'] + $shipment['biaya_layanan'] + $shipment['asuransi'];
+                $refundRes = SmartBank::processRefund($resi, $total_bayar, $user_email);
+                
+                if ($refundRes['status'] === 'success') {
+                    $this->addPembukuan($resi, $shipment['penerima_nama'], 'dibatalkan', 'pengeluaran', 'refund', $total_bayar, 'Refund dana pengiriman (Ref: ' . $refundRes['bank_ref'] . ')');
+                    return ['status' => 'success', 'message' => 'Pesanan dibatalkan dan dana Anda berhasil direfund.', 'refund_amount' => $total_bayar];
+                } else {
+                    return ['status' => 'warning', 'message' => 'Pesanan dibatalkan, namun refund SmartBank gagal: ' . $refundRes['message']];
+                }
+            }
+            return ['status' => 'success', 'message' => 'Pesanan berhasil dibatalkan.'];
+        }
+        return ['status' => 'error', 'message' => 'Gagal mengubah status di database.'];
+    }
+
+    public function addTip($resi, $tip_amount, $user_email) {
+        $resi = $this->conn->real_escape_string($resi);
+        $tip_amount = (float)$tip_amount;
+        
+        $shipmentRes = $this->conn->query("SELECT * FROM " . $this->table_name . " WHERE resi = '$resi'");
+        if ($shipmentRes->num_rows === 0) {
+            return ['status' => 'error', 'message' => 'Pesanan tidak ditemukan.'];
+        }
+        $shipment = $shipmentRes->fetch_assoc();
+
+        $payRes = SmartBank::processTransaction($resi, $tip_amount, 'courier_tip', $user_email);
+        if ($payRes['status'] !== 'success') {
+            return ['status' => 'error', 'message' => 'Gagal melakukan pembayaran tip via SmartBank: ' . $payRes['message']];
+        }
+
+        $sql = "UPDATE " . $this->table_name . " SET tip = tip + $tip_amount WHERE id = " . $shipment['id'];
+        if ($this->conn->query($sql)) {
+            $this->addPembukuan($resi, $shipment['penerima_nama'], $shipment['status'] === 'delivered' ? 'diterima_konsumen' : 'transit_hub', 'pemasukan', 'tip_kurir', $tip_amount, 'Pemasukan tip kurir dari pelanggan');
+
+            if ($shipment['status'] === 'delivered') {
+                $this->addPembukuan($resi, $shipment['penerima_nama'], 'diterima_konsumen', 'pengeluaran', 'tip_kurir', $tip_amount, 'Penerusan tip ke kurir');
+                SmartBank::processTransaction($resi, $tip_amount, 'courier_tip_payout', 'kurir@logistikita.com');
+            }
+            
+            return ['status' => 'success', 'message' => 'Terima kasih! Tip sebesar Rp ' . number_format($tip_amount, 0, ',', '.') . ' berhasil dikirim ke kurir.'];
+        }
+        return ['status' => 'error', 'message' => 'Gagal mengupdate tip di database.'];
+    }
+
+    public function getPembukuanList() {
+        $sql = "SELECT * FROM pembukuan ORDER BY created_at DESC";
+        $result = $this->conn->query($sql);
+        $data = [];
+        if ($result && $result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
+                $data[] = $row;
+            }
+        }
+        return $data;
     }
     
     public function getTotalFeeLayanan() {

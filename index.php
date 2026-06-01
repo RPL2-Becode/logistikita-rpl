@@ -63,6 +63,18 @@ if (strpos($request, 'api/') === 0) {
         case 'logistikita/system_logs':
             $logistikitaController->getSystemLogs();
             break;
+        case 'logistikita/batalkan_pengiriman':
+            $logistikitaController->batalkanPengiriman();
+            break;
+        case 'logistikita/beri_tip':
+            $logistikitaController->beriTip();
+            break;
+        case 'logistikita/pembukuan_perusahaan':
+            $logistikitaController->getPembukuan();
+            break;
+        case 'smartbank/saldo':
+            $logistikitaController->getSmartBankBalance();
+            break;
         default:
             http_response_code(404);
             echo json_encode(["status" => "error", "message" => "API Endpoint not found: " . $apiRequest]);
@@ -92,6 +104,9 @@ switch ($request) {
         break;
     case 'kurir':
         include 'app/Views/kurir.html';
+        break;
+    case 'operator':
+        include 'app/Views/operator.html';
         break;
     case 'profile':
         include 'app/Views/profile.html';

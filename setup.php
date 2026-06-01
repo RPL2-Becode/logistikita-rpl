@@ -26,7 +26,7 @@ $sql = "CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'kurir', 'user') DEFAULT 'user',
+    role ENUM('admin', 'kurir', 'user', 'operator') DEFAULT 'user',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 $conn->query($sql);
@@ -57,6 +57,7 @@ $sql = "CREATE TABLE IF NOT EXISTS pengiriman (
     asuransi DECIMAL(10,2) DEFAULT 0,
     biaya_ongkir DECIMAL(15,2),
     biaya_layanan DECIMAL(15,2),
+    tip DECIMAL(15,2) DEFAULT 0,
     is_paid BOOLEAN DEFAULT FALSE,
     status VARCHAR(50) DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -102,11 +103,28 @@ $sql = "CREATE TABLE IF NOT EXISTS penugasan_kurir (
 )";
 $conn->query($sql);
 
+// 7. Table pembukuan
+$sql = "CREATE TABLE IF NOT EXISTS pembukuan (
+    id INT(11) AUTO_INCREMENT PRIMARY KEY,
+    resi VARCHAR(50) NOT NULL,
+    penerima_nama VARCHAR(100) NOT NULL,
+    status_barang VARCHAR(50) NOT NULL, -- 'masuk_sistem', 'transit_hub', 'sedang_dikirim', 'diterima_konsumen', 'dibatalkan'
+    jenis ENUM('pemasukan', 'pengeluaran') NOT NULL,
+    kategori VARCHAR(50) NOT NULL, -- 'ongkir', 'komisi_kurir', 'tip_kurir', 'pajak_layanan', 'refund'
+    jumlah DECIMAL(15,2) NOT NULL,
+    keterangan TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+$conn->query($sql);
+
 // Insert initial data
 $password = password_hash('password123', PASSWORD_DEFAULT);
 $conn->query("INSERT INTO users (name, email, password, role) VALUES ('Admin Logistikita', 'admin@logistikita.com', '$password', 'admin')");
 $conn->query("INSERT INTO users (name, email, password, role) VALUES ('Kurir Andalan', 'kurir@logistikita.com', '$password', 'kurir')");
 $conn->query("INSERT INTO users (name, email, password, role) VALUES ('User Test', 'user@logistikita.com', '$password', 'user')");
+$conn->query("INSERT INTO users (name, email, password, role) VALUES ('Operator Jakarta', 'operator.jkt@logistikita.com', '$password', 'operator')");
+$conn->query("INSERT INTO users (name, email, password, role) VALUES ('Operator Surabaya', 'operator.sby@logistikita.com', '$password', 'operator')");
+$conn->query("INSERT INTO users (name, email, password, role) VALUES ('Operator Bandung', 'operator.bdg@logistikita.com', '$password', 'operator')");
 
 $conn->query("INSERT INTO layanan (nama_layanan, deskripsi, base_price, estimasi_waktu) VALUES ('Logisti-Reguler', 'Pengiriman standar 2-3 hari', 10000, '2-3 Hari')");
 $conn->query("INSERT INTO layanan (nama_layanan, deskripsi, base_price, estimasi_waktu) VALUES ('Logisti-Express', 'Pengiriman cepat 1 hari', 15000, '1 Hari')");

@@ -166,6 +166,8 @@
             color: white;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body>
@@ -316,11 +318,13 @@
 
                     <div style="padding: 0 24px;">
                         <div class="status-tabs">
-                            <div class="status-tab active" data-filter="all">Semua <span class="tab-count" id="tab-count-all">0</span>
+                            <div class="status-tab active" data-filter="all">Semua <span class="tab-count"
+                                    id="tab-count-all">0</span>
                             </div>
-                            <div class="status-tab" data-filter="pending">Menunggu Verifikasi <span
-                                    class="tab-count" id="tab-count-pending">0</span></div>
-                            <div class="status-tab" data-filter="delivered">Terkirim <span class="tab-count" id="tab-count-delivered">0</span>
+                            <div class="status-tab" data-filter="pending">Menunggu Verifikasi <span class="tab-count"
+                                    id="tab-count-pending">0</span></div>
+                            <div class="status-tab" data-filter="delivered">Terkirim <span class="tab-count"
+                                    id="tab-count-delivered">0</span>
                             </div>
                         </div>
                     </div>
@@ -338,22 +342,24 @@
                                 </tr>
                             </thead>
                             <tbody id="approvalTableBody">
-                                <tr><td colspan="5" style="text-align:center; padding: 20px;">Memuat data...</td></tr>
+                                <tr>
+                                    <td colspan="5" style="text-align:center; padding: 20px;">Memuat data...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
-                        <!-- Batch Action Bar -->
-                        <div class="batch-action-bar" id="batchBar">
-                            <div class="batch-info">
-                                <span class="batch-count" id="batchCount">0</span>
-                                <span>Permohonan Terpilih</span>
-                            </div>
-                            <div class="batch-buttons">
-                                <button class="btn-batch-reject">Tolak Masal</button>
-                                <button class="btn-batch-approve"><i class="fas fa-check-double"></i> Setujui Masal</button>
-                            </div>
+                    <!-- Batch Action Bar -->
+                    <div class="batch-action-bar" id="batchBar">
+                        <div class="batch-info">
+                            <span class="batch-count" id="batchCount">0</span>
+                            <span>Permohonan Terpilih</span>
+                        </div>
+                        <div class="batch-buttons">
+                            <button class="btn-batch-reject">Tolak Masal</button>
+                            <button class="btn-batch-approve"><i class="fas fa-check-double"></i> Setujui Masal</button>
                         </div>
                     </div>
+                </div>
 
                 <!-- Map Placeholder Panel -->
                 <div class="panel-card">
@@ -392,7 +398,9 @@
                                 </tr>
                             </thead>
                             <tbody id="mini-grid-body">
-                                <tr><td colspan="3" style="text-align:center;">Memuat data armada...</td></tr>
+                                <tr>
+                                    <td colspan="3" style="text-align:center;">Memuat data armada...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -417,45 +425,45 @@
                 <div class="kpi-card" style="border-top: 4px solid var(--brand-green);">
                     <div class="kpi-card-header">
                         <div>
-                            <h3 class="kpi-title">Total Pendapatan Layanan</h3>
-                            <p class="kpi-value" id="finance-total-fee" style="font-size: 1.8rem;">Rp 0</p>
+                            <h3 class="kpi-title">Uang Yang Dimiliki (Saldo)</h3>
+                            <p class="kpi-value" id="finance-company-balance" style="font-size: 1.8rem;">Rp 0</p>
                         </div>
                         <div class="kpi-icon-wrapper green"><i class="fas fa-vault"></i></div>
                     </div>
-                    <div class="kpi-trend neutral"><i class="fas fa-lock"></i> Tersinkron API</div>
+                    <div class="kpi-trend up"><i class="fas fa-wallet"></i> Saldo Kas Bersih</div>
                 </div>
 
-                <div class="kpi-card">
+                <div class="kpi-card" style="border-top: 4px solid var(--brand-red);">
                     <div class="kpi-card-header">
                         <div>
-                            <h3 class="kpi-title">Nilai Settlement Tertunda</h3>
-                            <p class="kpi-value" id="finance-settlement" style="font-size: 1.8rem;">Rp 0</p>
+                            <h3 class="kpi-title">Total Pengeluaran</h3>
+                            <p class="kpi-value" id="finance-total-expenses" style="font-size: 1.8rem;">Rp 0</p>
                         </div>
                         <div class="kpi-icon-wrapper red"><i class="fas fa-file-invoice-dollar"></i></div>
                     </div>
-                    <div class="kpi-trend down"><i class="fas fa-exclamation-circle"></i> Membutuhkan otorisasi</div>
+                    <div class="kpi-trend down"><i class="fas fa-arrow-down-wide-short"></i> Operasional & Refund</div>
                 </div>
 
                 <div class="kpi-card">
                     <div class="kpi-card-header">
                         <div>
-                            <h3 class="kpi-title">Gross Revenue (Harian)</h3>
-                            <p class="kpi-value" id="finance-gross" style="font-size: 1.8rem;">Rp 0</p>
+                            <h3 class="kpi-title">Total Pendapatan Layanan</h3>
+                            <p class="kpi-value" id="finance-total-fee" style="font-size: 1.8rem;">Rp 0</p>
                         </div>
                         <div class="kpi-icon-wrapper blue"><i class="fas fa-coins"></i></div>
                     </div>
-                    <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> On Target</div>
+                    <div class="kpi-trend up"><i class="fas fa-percent"></i> Fee Sistem 5%</div>
                 </div>
 
                 <div class="kpi-card">
                     <div class="kpi-card-header">
                         <div>
-                            <h3 class="kpi-title">Operating Edge Margin</h3>
-                            <p class="kpi-value" id="finance-margin" style="font-size: 1.8rem;">100%</p>
+                            <h3 class="kpi-title">Gross Revenue (Omset)</h3>
+                            <p class="kpi-value" id="finance-gross" style="font-size: 1.8rem;">Rp 0</p>
                         </div>
                         <div class="kpi-icon-wrapper purple"><i class="fas fa-chart-pie"></i></div>
                     </div>
-                    <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> Efisiensi biaya tercapai</div>
+                    <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> Total Dana Masuk</div>
                 </div>
             </div>
 
@@ -475,28 +483,46 @@
                 </div>
             </div>
 
+            <!-- General Ledger Bookkeeping Panel -->
             <div class="panel-card">
-                <div class="panel-header">
+                <div class="panel-header"
+                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                     <div>
-                        <h3>Clearing House Antrean Pembayaran</h3>
-                        <p style="color: #10b981; font-weight: 600;"><i class="fas fa-shield-halved"></i> Akses Keamanan
-                            Lapis 2 Terverifikasi</p>
+                        <h3>Buku Besar & Pembukuan Perusahaan</h3>
+                        <p style="color: #10b981; font-weight: 600;"><i class="fas fa-shield-halved"></i> Data Arus Kas
+                            Terintegrasi Status Pengiriman</p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-action-primary"
+                            style="background-color: var(--brand-green); font-size: 0.85rem;"
+                            onclick="exportBookkeepingToPDF()">
+                            <i class="fas fa-file-pdf"></i> Ekspor PDF (Pembukuan)
+                        </button>
+                        <button class="btn-action-secondary"
+                            style="background-color: #3b82f6; border-color: #3b82f6; color: white; font-size: 0.85rem;"
+                            onclick="exportFinanceSummaryToPDF()">
+                            <i class="fas fa-print"></i> Ringkasan Keuangan
+                        </button>
                     </div>
                 </div>
                 <div class="table-wrapper">
-                    <table class="enterprise-table">
+                    <table class="enterprise-table" id="bookkeepingTable">
                         <thead>
                             <tr>
-                                <th>ID Transaksi</th>
-                                <th>Tujuan Disbursement</th>
-                                <th>Nominal Validasi</th>
-                                <th>Jenis Jalur</th>
-                                <th>Catatan Sistem</th>
-                                <th style="text-align: right;">Otorisasi</th>
+                                <th>Waktu</th>
+                                <th>Resi</th>
+                                <th>Penerima</th>
+                                <th>Status Barang</th>
+                                <th>Kategori</th>
+                                <th>Jenis</th>
+                                <th>Jumlah</th>
+                                <th>Keterangan</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr><td colspan="6" style="text-align:center; padding: 20px;">Tidak ada antrean clearance pada sesi ini.</td></tr>
+                        <tbody id="bookkeepingTableBody">
+                            <tr>
+                                <td colspan="8" style="text-align:center; padding: 20px;">Memuat data pembukuan...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -552,7 +578,9 @@
                             </tr>
                         </thead>
                         <tbody id="shipments-table-body">
-                            <tr><td colspan="7" style="text-align:center; padding: 20px;">Memuat data...</td></tr>
+                            <tr>
+                                <td colspan="7" style="text-align:center; padding: 20px;">Memuat data...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -605,7 +633,9 @@
                             </tr>
                         </thead>
                         <tbody id="fleet-table-body">
-                            <tr><td colspan="6" style="text-align:center; padding: 20px;">Memuat armada aktif...</td></tr>
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding: 20px;">Memuat armada aktif...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -661,7 +691,10 @@
                             </tr>
                         </thead>
                         <tbody id="couriers-table-body">
-                            <tr><td colspan="6" style="text-align:center; padding: 20px;">Memuat data kurir dari backend...</td></tr>
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding: 20px;">Memuat data kurir dari
+                                    backend...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -677,14 +710,16 @@
                     <h1 class="page-title">Identity & Access Management</h1>
                     <p class="page-subtitle">Kelola otentikasi kurir, admin, dan hak akses sistem LogistiKita.</p>
                 </div>
-                <button class="btn-action-primary" onclick="toggleAccountOverlay()"><i class="fas fa-user-plus"></i> Tambah Kurir</button>
+                <button class="btn-action-primary" onclick="toggleAccountOverlay()"><i class="fas fa-user-plus"></i>
+                    Tambah Kurir</button>
             </div>
 
             <div class="panel-card">
                 <div class="panel-header">
                     <h3>Daftar Pengguna Sistem</h3>
                     <div style="display: flex; gap: 8px;">
-                        <input type="text" class="form-control" placeholder="Cari akun..." style="padding: 6px 12px; font-size: 0.8rem; width: 200px;">
+                        <input type="text" class="form-control" placeholder="Cari akun..."
+                            style="padding: 6px 12px; font-size: 0.8rem; width: 200px;">
                     </div>
                 </div>
                 <div class="table-wrapper">
@@ -700,7 +735,9 @@
                             </tr>
                         </thead>
                         <tbody id="accounts-table-body">
-                            <tr><td colspan="6" style="text-align:center; padding: 20px;">Memuat data akun...</td></tr>
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding: 20px;">Memuat data akun...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -734,7 +771,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="5" style="text-align:center; padding: 20px;">Data klien korporat ditarik secara otomatis dari API terintegrasi.</td></tr>
+                            <tr>
+                                <td colspan="5" style="text-align:center; padding: 20px;">Data klien korporat ditarik
+                                    secara otomatis dari API terintegrasi.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -815,28 +855,44 @@
                     <div style="padding: 24px;">
                         <form id="hubScannerForm" onsubmit="event.preventDefault(); submitHubUpdate();">
                             <div class="form-group-lite" style="margin-bottom: 20px;">
-                                <label style="font-weight: 700; color: #0f172a; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                <label
+                                    style="font-weight: 700; color: #0f172a; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                                     <span>Nomor Resi</span>
-                                    <button type="button" onclick="startCameraScan()" style="background: #eff6ff; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer;"><i class="fas fa-camera"></i> Scan Kamera</button>
+                                    <button type="button" onclick="startCameraScan()"
+                                        style="background: #eff6ff; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer;"><i
+                                            class="fas fa-camera"></i> Scan Kamera</button>
                                 </label>
-                                <div id="reader" style="width: 100%; display: none; margin-bottom: 12px; border-radius: 12px; overflow: hidden; border: 2px solid #e2e8f0;"></div>
-                                <input type="text" id="scanResiInput" placeholder="Scan Barcode Resi di sini..." autofocus style="width: 100%; padding: 16px; font-size: 1.2rem; font-weight: 800; border: 2px solid #e2e8f0; border-radius: 12px; color: #0f172a;" autocomplete="off">
+                                <div id="reader"
+                                    style="width: 100%; display: none; margin-bottom: 12px; border-radius: 12px; overflow: hidden; border: 2px solid #e2e8f0;">
+                                </div>
+                                <input type="text" id="scanResiInput" placeholder="Scan Barcode Resi di sini..."
+                                    autofocus
+                                    style="width: 100%; padding: 16px; font-size: 1.2rem; font-weight: 800; border: 2px solid #e2e8f0; border-radius: 12px; color: #0f172a;"
+                                    autocomplete="off">
                             </div>
 
                             <div class="form-group-lite" style="margin-bottom: 20px;">
-                                <label style="font-weight: 700; color: #0f172a; margin-bottom: 8px; display: block;">Lokasi Cabang / Hub</label>
-                                <input type="text" id="scanLocationInput" value="" readonly style="width: 100%; padding: 12px; font-size: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #f1f5f9; color: #64748b; cursor: not-allowed;">
+                                <label
+                                    style="font-weight: 700; color: #0f172a; margin-bottom: 8px; display: block;">Lokasi
+                                    Cabang / Hub</label>
+                                <input type="text" id="scanLocationInput" value="" readonly
+                                    style="width: 100%; padding: 12px; font-size: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #f1f5f9; color: #64748b; cursor: not-allowed;">
                             </div>
 
                             <div class="form-group-lite" style="margin-bottom: 24px;">
-                                <label style="font-weight: 700; color: #0f172a; margin-bottom: 8px; display: block;">Aksi Status</label>
-                                <select id="scanStatusAction" style="width: 100%; padding: 12px; font-size: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; color: #0f172a; background-color: white;">
+                                <label
+                                    style="font-weight: 700; color: #0f172a; margin-bottom: 8px; display: block;">Aksi
+                                    Status</label>
+                                <select id="scanStatusAction"
+                                    style="width: 100%; padding: 12px; font-size: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; color: #0f172a; background-color: white;">
                                     <option value="Barang sudah diterima di Hub">Barang sudah diterima di Hub</option>
                                     <option value="Barang keluar dari Hub">Barang keluar dari Hub</option>
                                 </select>
                             </div>
 
-                            <button type="submit" id="btnUpdateScan" style="width: 100%; background: #10b981; color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 800; font-size: 1.1rem; cursor: pointer; transition: all 0.2s;"><i class="fas fa-check-circle"></i> Update Status (Enter)</button>
+                            <button type="submit" id="btnUpdateScan"
+                                style="width: 100%; background: #10b981; color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 800; font-size: 1.1rem; cursor: pointer; transition: all 0.2s;"><i
+                                    class="fas fa-check-circle"></i> Update Status (Enter)</button>
                         </form>
                     </div>
                 </div>
@@ -848,12 +904,15 @@
                             <h3><i class="fas fa-list-check"></i> Riwayat Scan Sesi Ini</h3>
                             <p>Data paket yang berhasil diperbarui.</p>
                         </div>
-                        <div class="badge" style="background: #eff6ff; color: #3b82f6; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem;" id="sessionScanCount">0 Paket</div>
+                        <div class="badge"
+                            style="background: #eff6ff; color: #3b82f6; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem;"
+                            id="sessionScanCount">0 Paket</div>
                     </div>
                     <div style="padding: 0;">
                         <ul id="scanHistoryList" style="list-style: none; margin: 0; padding: 0;">
                             <li id="emptyScanState" style="padding: 40px 24px; text-align: center; color: #94a3b8;">
-                                <i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 12px; color: #cbd5e1;"></i>
+                                <i class="fas fa-box-open"
+                                    style="font-size: 2rem; margin-bottom: 12px; color: #cbd5e1;"></i>
                                 <p style="margin: 0;">Belum ada resi yang di-scan pada sesi ini.</p>
                             </li>
                         </ul>
@@ -889,7 +948,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="5" style="text-align:center; padding: 20px;">Catatan pencairan settlement tersinkronisasi via Gateway SmartBank.</td></tr>
+                            <tr>
+                                <td colspan="5" style="text-align:center; padding: 20px;">Catatan pencairan settlement
+                                    tersinkronisasi via Gateway SmartBank.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -953,9 +1015,11 @@
     <div class="overlay-panel" id="accountOverlay">
         <div class="overlay-header">
             <h2 id="overlayTitle" style="margin: 0; font-size: 1.5rem; font-weight: 800;">Tambah Kurir</h2>
-            <button class="btn-ghost" onclick="toggleAccountOverlay()" style="border: none; font-size: 1.2rem;"><i class="fas fa-times"></i></button>
+            <button class="btn-ghost" onclick="toggleAccountOverlay()" style="border: none; font-size: 1.2rem;"><i
+                    class="fas fa-times"></i></button>
         </div>
-        <p class="page-subtitle" style="margin-top: -20px; margin-bottom: 32px;">Pastikan data yang dimasukkan sesuai dengan identitas pegawai.</p>
+        <p class="page-subtitle" style="margin-top: -20px; margin-bottom: 32px;">Pastikan data yang dimasukkan sesuai
+            dengan identitas pegawai.</p>
 
         <div style="display: flex; flex-direction: column; gap: 20px;">
             <div class="form-group">

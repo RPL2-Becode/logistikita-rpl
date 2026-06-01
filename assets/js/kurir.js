@@ -144,6 +144,19 @@ function loadKurirData() {
     const profAvatar = document.getElementById('profile-avatar-large');
     if (profAvatar) profAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0f172a&color=ffffff&bold=true&size=150`;
 
+    // Fetch SmartBank balance
+    fetch(`api/smartbank/saldo?email=${encodeURIComponent(user.email)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const balanceVal = parseFloat(data.data.saldo);
+                const earnTotal = document.getElementById('earnings-total');
+                const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+                if (earnTotal) earnTotal.innerText = formatter.format(balanceVal);
+            }
+        })
+        .catch(err => console.error("Error loading courier balance:", err));
+
     fetch('api/logistikita/daftar_pengiriman?type=kurir')
         .then(res => res.json())
         .then(data => {
@@ -169,8 +182,6 @@ function loadKurirData() {
                     if (statPackages) statPackages.innerText = '0';
                     const statProfit = document.getElementById('stat-profit');
                     if (statProfit) statProfit.innerText = 'Rp 0';
-                    const earnTotal = document.getElementById('earnings-total');
-                    if (earnTotal) earnTotal.innerText = 'Rp 0';
                     initMap(); // Draw empty map
                     return;
                 }
@@ -203,16 +214,21 @@ function loadKurirData() {
                             `;
                         }
                     } else {
-                        // History & Earnings
-                        const profit = Math.floor(item.biaya_ongkir * 0.1); // Asumsi komisi 10%
-                        totalProfit += profit;
+                        // History & Earnings (Commission 10% + Tips)
+                        const profit = Math.floor(item.biaya_ongkir * 0.1);
+                        const tip = parseFloat(item.tip || 0);
+                        const totalEarning = profit + tip;
+                        totalProfit += totalEarning;
 
                         if (historyBody) {
                             historyBody.innerHTML += `
                                 <tr style="border-bottom: 1px solid #f1f5f9; cursor: pointer;" onclick="viewActiveMission('${item.resi}', '${item.penerima_nama}', '${item.status}')">
                                     <td style="padding: 16px; font-weight: 800;">${item.resi}</td>
                                     <td style="padding: 16px; font-size: 0.85rem;">${timeStr}</td>
-                                    <td style="padding: 16px; font-weight: 800; color: var(--brand-green);">+Rp ${Math.floor(profit / 1000)}K</td>
+                                    <td style="padding: 16px; font-weight: 800; color: var(--brand-green);">
+                                        +Rp ${totalEarning.toLocaleString('id-ID')}
+                                        ${tip > 0 ? `<br><small style="color:var(--text-gray); font-weight:normal;">(Komisi: Rp ${profit.toLocaleString('id-ID')}, Tip: Rp ${tip.toLocaleString('id-ID')})</small>` : ''}
+                                    </td>
                                     <td style="padding: 16px;"><span class="status-pill success">DONE</span></td>
                                 </tr>
                             `;
@@ -225,9 +241,10 @@ function loadKurirData() {
                                         <div>
                                             <div style="font-weight:900;">${item.resi}</div>
                                             <div style="font-size:0.75rem; color:var(--text-gray);">${timeStr}</div>
+                                            ${tip > 0 ? `<div style="font-size:0.7rem; color:var(--text-gray);">Komisi: Rp ${profit.toLocaleString('id-ID')} | Tip: Rp ${tip.toLocaleString('id-ID')}</div>` : ''}
                                         </div>
                                         <div style="text-align:right;">
-                                            <div style="font-weight:900; color:var(--brand-green);">+Rp ${Math.floor(profit / 1000)}K</div>
+                                            <div style="font-weight:900; color:var(--brand-green);">+Rp ${totalEarning.toLocaleString('id-ID')}</div>
                                             <span class="status-pill success" style="font-size:0.6rem;">DONE</span>
                                         </div>
                                     </div>
@@ -239,10 +256,11 @@ function loadKurirData() {
                             earningsHistory.innerHTML += `
                                 <div style="padding: 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
                                     <div>
-                                        <div style="font-weight:800; font-size:0.9rem;">Komisi ${item.resi}</div>
+                                        <div style="font-weight:800; font-size:0.9rem;">Komisi & Tip ${item.resi}</div>
                                         <div style="font-size:0.75rem; color:var(--text-gray);">${timeStr}</div>
+                                        ${tip > 0 ? `<div style="font-size:0.75rem; color:var(--text-gray);">Komisi: Rp ${profit.toLocaleString('id-ID')} | Tip: Rp ${tip.toLocaleString('id-ID')}</div>` : ''}
                                     </div>
-                                    <div style="font-weight:900; color:var(--brand-green);">+Rp ${profit.toLocaleString('id-ID')}</div>
+                                    <div style="font-weight:900; color:var(--brand-green);">+Rp ${totalEarning.toLocaleString('id-ID')}</div>
                                 </div>
                             `;
                         }
@@ -252,11 +270,9 @@ function loadKurirData() {
                 const statPackages = document.getElementById('stat-packages');
                 if (statPackages) statPackages.innerText = pkgCount;
 
-                const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' });
+                const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
                 const statProfit = document.getElementById('stat-profit');
                 if (statProfit) statProfit.innerText = formatter.format(totalProfit);
-                const earnTotal = document.getElementById('earnings-total');
-                if (earnTotal) earnTotal.innerText = formatter.format(totalProfit);
 
                 if (pkgCount === 0 && upcomingList) {
                     upcomingList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-gray);">Semua misi telah selesai!</div>';
