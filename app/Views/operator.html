@@ -1,132 +1,18 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Operator Hub | LogistiKita</title>
+    <title>Operator Portal | LogistiKita</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="assets/css/admin.css">
-    <style>
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
-        }
-        .main-container {
-            background-color: #0b0f19;
-            min-height: 100vh;
-        }
-        .panel-card {
-            background: rgba(30, 41, 59, 0.4);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 24px;
-            box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
-            margin-bottom: 30px;
-            color: #f8fafc;
-        }
-        .panel-header {
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            padding: 24px 32px;
-        }
-        .panel-header h3 {
-            color: #f8fafc;
-            font-weight: 800;
-            font-size: 1.3rem;
-            margin: 0;
-        }
-        .panel-header p {
-            color: #94a3b8;
-            margin-top: 4px;
-        }
-        .form-control-dark {
-            width: 100%;
-            padding: 16px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            background: rgba(15, 23, 42, 0.6);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            color: #f8fafc;
-            transition: all 0.3s;
-        }
-        .form-control-dark:focus {
-            border-color: #10b981;
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
-            outline: none;
-        }
-        .form-control-dark[readonly] {
-            background: rgba(15, 23, 42, 0.3);
-            color: #64748b;
-            cursor: not-allowed;
-        }
-        .btn-update {
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 18px;
-            border-radius: 16px;
-            font-weight: 800;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 10px 20px -10px rgba(16, 185, 129, 0.4);
-        }
-        .btn-update:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 25px -10px rgba(16, 185, 129, 0.6);
-            background: #059669;
-        }
-        .sidebar {
-            background: #0b0f19;
-            border-right: 1px solid rgba(255,255,255,0.05);
-        }
-        .sidebar-logo {
-            color: #f8fafc;
-        }
-        .sidebar-item {
-            color: #94a3b8;
-            border-radius: 16px;
-            margin: 6px 16px;
-            font-weight: 600;
-        }
-        .sidebar-item:hover, .sidebar-item.active {
-            background: rgba(225, 29, 72, 0.15);
-            color: #f43f5e;
-        }
-        .badge-session {
-            background: rgba(59, 130, 246, 0.15);
-            color: #60a5fa;
-            border: 1px solid rgba(96, 165, 250, 0.3);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 0.85rem;
-        }
-        .scan-log-item {
-            padding: 20px 32px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: transparent;
-            transition: all 0.2s;
-        }
-        .scan-log-item:hover {
-            background: rgba(255, 255, 255, 0.02);
-        }
-        select.form-control-dark {
-            appearance: none;
-            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 16px center;
-            background-size: 18px;
-            padding-right: 48px;
-        }
-    </style>
+    <link rel="stylesheet" href="assets/css/operator.css">
 </head>
+
 <body class="portal-page">
 
     <!-- Sidebar Navigation -->
@@ -138,8 +24,13 @@
         <div class="sidebar-nav">
             <div class="nav-group-label">Operator Portal</div>
             <div id="sidebar-menu-content">
-                <div class="sidebar-item active"><i class="fas fa-barcode"></i> Operasional Hub</div>
-                <a href="auth" class="sidebar-item" style="margin-top: 150px; text-decoration: none; color: #f87171;">
+                <div class="sidebar-item active" onclick="switchOperatorView('operator-approval-view', this)">
+                    <i class="fas fa-clipboard-check"></i> Verifikasi Pengiriman
+                </div>
+                <div class="sidebar-item" onclick="switchOperatorView('operator-scan-view', this)">
+                    <i class="fas fa-barcode"></i> Operasional Hub
+                </div>
+                <a href="javascript:void(0)" onclick="logoutOperator()" class="sidebar-item" style="margin-top: 150px; text-decoration: none; color: #f87171;">
                     <i class="fas fa-sign-out-alt"></i> Log Out
                 </a>
             </div>
@@ -147,7 +38,8 @@
 
         <div class="sidebar-footer">
             <div class="user-profile-side">
-                <div style="width: 36px; height: 36px; border-radius: 50%; background: #f43f5e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;" id="nav-avatar">OP</div>
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: #f43f5e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;"
+                    id="nav-avatar">OP</div>
                 <div class="user-info">
                     <span class="user-name" id="operator-name" style="color: white; font-weight: 700;">Operator</span>
                     <span class="user-role" style="color: #64748b; font-weight: 600;">HUB OFFICER</span>
@@ -159,80 +51,136 @@
     <!-- Main Content Workspace -->
     <main class="main-container" style="padding-top: 40px;">
         <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
-            
-            <div class="page-header" style="margin-bottom: 40px;">
-                <div>
-                    <h1 class="page-title" style="font-weight: 900; font-size: 2.2rem; color: white; margin: 0;">Transit Hub Terminal</h1>
-                    <p class="page-subtitle" style="color: #94a3b8; margin-top: 8px;">Pindai resi paket dan perbarui status keberadaan logistik secara real-time.</p>
+
+            <!-- ========================================== -->
+            <!-- VIEW 1: VERIFIKASI PENGIRIMAN (APPROVAL)   -->
+            <!-- ========================================== -->
+            <div id="operator-approval-view" class="view-section active">
+                <div class="page-header" style="margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1 class="page-title" style="font-weight: 900; font-size: 2.2rem; color: white; margin: 0;">Verifikasi Pengiriman Baru</h1>
+                        <p class="page-subtitle" style="color: #94a3b8; margin-top: 8px;">Tinjau dan setujui (ACC) permohonan kiriman paket baru dari konsumen.</p>
+                    </div>
+                    <!-- Select Hub for ACC Context -->
+                    <div style="min-width: 250px;">
+                        <label style="font-weight: 700; color: #e2e8f0; margin-bottom: 6px; display: block; font-size: 0.85rem;">Konstruksi Hub Operator</label>
+                        <select id="operatorHubSelectApproval" class="form-control-dark" style="padding: 10px 14px; font-size: 0.95rem; background: rgba(30,41,59,0.8);" onchange="syncHubSelectors(this.value)">
+                            <option value="Hub Jakarta (Cabang 1)">Hub Jakarta (Cabang 1)</option>
+                            <option value="Hub Surabaya (Cabang 2)">Hub Surabaya (Cabang 2)</option>
+                            <option value="Hub Bandung (Cabang 3)">Hub Bandung (Cabang 3)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <h3>Antrean Paket Menunggu Verifikasi (Pending)</h3>
+                        <p>Tekan tombol "ACC / Terima" untuk menerbitkan resi dan meneruskannya ke kurir.</p>
+                    </div>
+                    <div class="table-wrapper" style="overflow-x: auto;">
+                        <table class="enterprise-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); color: #94a3b8; font-size: 0.85rem;">
+                                    <th style="padding: 16px;">Detail Resi</th>
+                                    <th style="padding: 16px;">Layanan & Destinasi</th>
+                                    <th style="padding: 16px;">Pengirim</th>
+                                    <th style="padding: 16px;">Penerima</th>
+                                    <th style="padding: 16px; text-align: center;">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingShipmentsTableBody" style="color: #e2e8f0;">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 32px; color: #64748b;">Memuat antrean pending...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <div class="layout-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px;">
-                
-                <!-- Left Panel: Scanner Form -->
-                <div class="panel-card">
-                    <div class="panel-header">
-                        <h3><i class="fas fa-qrcode" style="color: #10b981; margin-right: 8px;"></i> Input Pemindaian Paket</h3>
-                        <p>Pilih Hub Cabang, masukkan nomor resi, lalu perbarui status transit.</p>
+            <!-- ========================================== -->
+            <!-- VIEW 2: OPERASIONAL HUB (SCANNER)          -->
+            <!-- ========================================== -->
+            <div id="operator-scan-view" class="view-section">
+                <div class="page-header" style="margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1 class="page-title" style="font-weight: 900; font-size: 2.2rem; color: white; margin: 0;">Transit Hub Terminal</h1>
+                        <p class="page-subtitle" style="color: #94a3b8; margin-top: 8px;">Pindai resi paket dan perbarui status keberadaan logistik secara real-time.</p>
                     </div>
-                    <div style="padding: 32px;">
-                        <form id="hubOperatorForm" onsubmit="event.preventDefault(); handleHubUpdate();">
-                            
-                            <!-- Hub Branch Selector -->
-                            <div class="form-group" style="margin-bottom: 24px;">
-                                <label style="font-weight: 700; color: #e2e8f0; margin-bottom: 10px; display: block;">Hub Lokasi Cabang</label>
-                                <select id="operatorHubSelect" class="form-control-dark" onchange="updateLocationDisplay()">
-                                    <option value="Hub Jakarta (Cabang 1)">Hub Jakarta (Cabang 1)</option>
-                                    <option value="Hub Surabaya (Cabang 2)">Hub Surabaya (Cabang 2)</option>
-                                    <option value="Hub Bandung (Cabang 3)">Hub Bandung (Cabang 3)</option>
-                                </select>
-                            </div>
-
-                            <!-- Manual/Scanner Input -->
-                            <div class="form-group" style="margin-bottom: 24px;">
-                                <label style="font-weight: 700; color: #e2e8f0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Nomor Resi / Barcode</span>
-                                    <button type="button" onclick="toggleCameraScanner()" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.2); padding: 6px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;"><i class="fas fa-camera"></i> Scan Kamera</button>
-                                </label>
-                                <div id="camera-reader" style="width: 100%; display: none; margin-bottom: 16px; border-radius: 16px; overflow: hidden; border: 2px solid rgba(255,255,255,0.1);"></div>
-                                <input type="text" id="resiInput" placeholder="Ketik atau scan barcode resi (format: LKT-YMD-RAND)..." autofocus class="form-control-dark" autocomplete="off" required>
-                            </div>
-
-                            <!-- Action Status Selection -->
-                            <div class="form-group" style="margin-bottom: 32px;">
-                                <label style="font-weight: 700; color: #e2e8f0; margin-bottom: 10px; display: block;">Status Operasional Hub</label>
-                                <select id="statusActionSelect" class="form-control-dark">
-                                    <option value="masuk">Barang sudah diterima di Hub (Transit Masuk)</option>
-                                    <option value="keluar">Barang keluar dari Hub (Transit Keluar)</option>
-                                </select>
-                            </div>
-
-                            <button type="submit" id="btnUpdate" class="btn-update" style="width: 100%;">
-                                <i class="fas fa-arrow-circle-up" style="margin-right: 8px;"></i> Perbarui Status Barang (Enter)
-                            </button>
-                        </form>
+                    <!-- Select Hub for Scan Context -->
+                    <div style="min-width: 250px;">
+                        <label style="font-weight: 700; color: #e2e8f0; margin-bottom: 6px; display: block; font-size: 0.85rem;">Hub Lokasi Cabang</label>
+                        <select id="operatorHubSelect" class="form-control-dark" style="padding: 10px 14px; font-size: 0.95rem; background: rgba(30,41,59,0.8);" onchange="syncHubSelectors(this.value)">
+                            <option value="Hub Jakarta (Cabang 1)">Hub Jakarta (Cabang 1)</option>
+                            <option value="Hub Surabaya (Cabang 2)">Hub Surabaya (Cabang 2)</option>
+                            <option value="Hub Bandung (Cabang 3)">Hub Bandung (Cabang 3)</option>
+                        </select>
                     </div>
                 </div>
 
-                <!-- Right Panel: Session Scan Logs -->
-                <div class="panel-card" style="display: flex; flex-direction: column;">
-                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <h3><i class="fas fa-history" style="color: #60a5fa; margin-right: 8px;"></i> Riwayat Sesi Ini</h3>
-                            <p>Aktivitas pembaruan status hub yang sukses.</p>
+                <div class="layout-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px;">
+
+                    <!-- Left Panel: Scanner Form -->
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-qrcode" style="color: #10b981; margin-right: 8px;"></i> Input Pemindaian Paket</h3>
+                            <p>Masukkan nomor resi, lalu perbarui status transit di cabang ini.</p>
                         </div>
-                        <span class="badge-session" id="scanCountBadge">0 Paket</span>
-                    </div>
-                    <div style="flex: 1; overflow-y: auto; max-height: 480px; padding: 0;">
-                        <ul id="sessionLogsList" style="list-style: none; margin: 0; padding: 0;">
-                            <li id="emptyLogState" style="padding: 60px 32px; text-align: center; color: #64748b;">
-                                <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 16px; color: #334155;"></i>
-                                <p style="margin: 0; font-weight: 600;">Belum ada resi yang diperbarui dalam sesi ini.</p>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+                        <div style="padding: 32px;">
+                            <form id="hubOperatorForm" onsubmit="event.preventDefault(); handleHubUpdate();">
 
+                                <!-- Manual/Scanner Input -->
+                                <div class="form-group" style="margin-bottom: 24px;">
+                                    <label style="font-weight: 700; color: #e2e8f0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                                        <span>Nomor Resi / Barcode</span>
+                                        <button type="button" onclick="toggleCameraScanner()"
+                                            style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.2); padding: 6px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;"><i
+                                                class="fas fa-camera"></i> Scan Kamera</button>
+                                    </label>
+                                    <div id="camera-reader"
+                                        style="width: 100%; display: none; margin-bottom: 16px; border-radius: 16px; overflow: hidden; border: 2px solid rgba(255,255,255,0.1);">
+                                    </div>
+                                    <input type="text" id="resiInput"
+                                        placeholder="Ketik atau scan barcode resi (format: LKT-YMD-RAND)..." autofocus
+                                        class="form-control-dark" autocomplete="off" required>
+                                </div>
+
+                                <!-- Action Status Selection -->
+                                <div class="form-group" style="margin-bottom: 32px;">
+                                    <label style="font-weight: 700; color: #e2e8f0; margin-bottom: 10px; display: block;">Status Operasional Hub</label>
+                                    <select id="statusActionSelect" class="form-control-dark">
+                                        <option value="masuk">Barang sudah diterima di Hub (Transit Masuk)</option>
+                                        <option value="keluar">Barang keluar dari Hub (Transit Keluar)</option>
+                                    </select>
+                                </div>
+
+                                <button type="submit" id="btnUpdate" class="btn-update" style="width: 100%;">
+                                    <i class="fas fa-arrow-circle-up" style="margin-right: 8px;"></i> Perbarui Status Barang (Enter)
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Session Scan Logs -->
+                    <div class="panel-card" style="display: flex; flex-direction: column;">
+                        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3><i class="fas fa-history" style="color: #60a5fa; margin-right: 8px;"></i> Riwayat Sesi Ini</h3>
+                                <p>Aktivitas pembaruan status hub yang sukses.</p>
+                            </div>
+                            <span class="badge-session" id="scanCountBadge">0 Paket</span>
+                        </div>
+                        <div style="flex: 1; overflow-y: auto; max-height: 480px; padding: 0;">
+                            <ul id="sessionLogsList" style="list-style: none; margin: 0; padding: 0;">
+                                <li id="emptyLogState" style="padding: 60px 32px; text-align: center; color: #64748b;">
+                                    <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 16px; color: #334155;"></i>
+                                    <p style="margin: 0; font-weight: 600;">Belum ada resi yang diperbarui dalam sesi ini.</p>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
             </div>
 
         </div>
@@ -242,6 +190,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Html5-Qrcode library for camera barcode scanner -->
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="assets/js/operator.js"></script>
+    <script src="assets/js/operator.js?v=20260602"></script>
 </body>
+
 </html>

@@ -1,7 +1,7 @@
 <?php
 class SmartBank {
-    // URL endpoint API SmartBank dalam ekosistem
-    private static $baseUrl = 'http://localhost/smartbank/index.php?request=api/';
+    // URL endpoint API SmartBank dialirkan melalui API Gateway
+    private static $baseUrl = 'http://localhost/gateway/index.php?request=api/smartbank/';
 
     /**
      * Mengambil saldo user dari API SmartBank

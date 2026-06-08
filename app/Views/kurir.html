@@ -108,6 +108,43 @@
                 </div>
 
                 <div>
+                    <!-- Knapsack Optimizer Control Panel -->
+                    <div class="enterprise-card" style="margin-bottom: 24px; padding: 20px; border-radius: 24px; border: 1px solid var(--card-border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div class="kpi-icon" style="width:36px; height:36px; font-size:1rem; margin:0;"><i class="fas fa-route"></i></div>
+                                <h4 style="margin:0; font-weight:900; font-size:0.95rem;">Optimasi Muatan (Greedy Knapsack)</h4>
+                            </div>
+                            <label class="switch-container">
+                                <input type="checkbox" id="knapsack-toggle" onchange="toggleKnapsack(this)">
+                                <span class="slider-round"></span>
+                            </label>
+                        </div>
+                        <div id="knapsack-controls" style="display: none; transition: all 0.3s ease;">
+                            <div style="margin-bottom: 12px;">
+                                <div style="display:flex; justify-content:space-between; font-size: 0.8rem; font-weight: 700; margin-bottom: 6px;">
+                                    <span>Kapasitas Kendaraan (Kg)</span>
+                                    <span id="capacity-value" style="color: var(--brand-red); font-weight: 800;">20 Kg</span>
+                                </div>
+                                <input type="range" id="capacity-slider" min="5" max="50" value="20" step="1" oninput="updateCapacity(this.value)" style="width: 100%; accent-color: var(--brand-red); cursor: pointer;">
+                            </div>
+                            
+                            <div style="background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.75rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-weight: 700;">
+                                    <span>Total Berat Muatan:</span>
+                                    <span id="knapsack-total-weight" style="font-weight: 800;">0 / 20 Kg</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 10px;">
+                                    <div id="knapsack-progress-bar" style="width: 0%; height: 100%; background: var(--brand-red); transition: width 0.3s ease;"></div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-weight: 700;">
+                                    <span>Estimasi Keuntungan:</span>
+                                    <span id="knapsack-total-profit" style="color: var(--brand-green); font-size: 0.85rem; font-weight: 800;">Rp 0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <h3 id="upcoming-header" style="font-weight:900;">Next In Queue</h3>
                     <div class="task-list" id="upcoming-task-list">
                         <!-- Dynamic content -->
@@ -246,7 +283,7 @@
     </nav>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="assets/js/kurir.js"></script>
+    <script src="assets/js/kurir.js?v=20260602"></script>
 </body>
 
 </html>

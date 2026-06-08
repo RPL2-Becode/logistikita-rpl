@@ -45,6 +45,8 @@ $conn->query($sql);
 $sql = "CREATE TABLE IF NOT EXISTS pengiriman (
     id INT(11) AUTO_INCREMENT PRIMARY KEY,
     user_id INT(11) NOT NULL,
+    ext_order_id INT(11) DEFAULT NULL,
+    ext_user_id INT(11) DEFAULT NULL,
     resi VARCHAR(50) UNIQUE NOT NULL,
     pengirim_nama VARCHAR(100),
     pengirim_telp VARCHAR(20),
@@ -114,6 +116,18 @@ $sql = "CREATE TABLE IF NOT EXISTS pembukuan (
     jumlah DECIMAL(15,2) NOT NULL,
     keterangan TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+$conn->query($sql);
+
+// 8. Table api_logs (Request & Transaction Logs)
+$sql = "CREATE TABLE IF NOT EXISTS api_logs (
+    id INT(11) AUTO_INCREMENT PRIMARY KEY,
+    waktu TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    endpoint VARCHAR(255) NOT NULL,
+    user_app VARCHAR(100) NULL,
+    status VARCHAR(20) NOT NULL,
+    payload TEXT NULL,
+    error TEXT NULL
 )";
 $conn->query($sql);
 

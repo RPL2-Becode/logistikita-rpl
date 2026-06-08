@@ -29,6 +29,89 @@ if (strpos($request, 'api/') === 0) {
     $db = new Database();
     $connection = $db->getConnection();
     
+    // Helper function for JWT validation
+    function verifyJWT() {
+        $authHeader = '';
+        if (function_exists('apache_request_headers')) {
+            $headers = apache_request_headers();
+            $authHeader = isset($headers['Authorization']) ? $headers['Authorization'] : '';
+        }
+        if (empty($authHeader) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+            $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+        }
+        
+        if (empty($authHeader)) {
+            return ['valid' => false, 'error' => 'Otorisasi token diperlukan (Authorization header kosong).'];
+        }
+        if (strpos($authHeader, 'Bearer ') !== 0) {
+            return ['valid' => false, 'error' => 'Format token tidak valid (Harus Bearer <token>).'];
+        }
+        
+        $token = substr($authHeader, 7);
+        $decoded = base64_decode($token, true);
+        if (!$decoded) {
+            return ['valid' => false, 'error' => 'Token tidak valid (Bukan format base64).'];
+        }
+        
+        $payload = json_decode($decoded, true);
+        if (!$payload || !isset($payload['id']) || !isset($payload['role'])) {
+            return ['valid' => false, 'error' => 'Token kadaluarsa atau tidak valid.'];
+        }
+        return ['valid' => true, 'user' => $payload];
+    }
+
+    // Helper function for Logging API
+    function logApiRequest($conn, $endpoint, $user_app, $status, $payload, $error = null) {
+        $endpoint = $conn->real_escape_string($endpoint);
+        $user_app = $conn->real_escape_string($user_app);
+        $status = $conn->real_escape_string($status);
+        $payload = $conn->real_escape_string($payload);
+        $error = $error ? "'" . $conn->real_escape_string($error) . "'" : "NULL";
+        
+        $sql = "INSERT INTO api_logs (endpoint, user_app, status, payload, error) 
+                VALUES ('$endpoint', '$user_app', '$status', '$payload', $error)";
+        $conn->query($sql);
+    }
+
+    // List of endpoints that require JWT validation
+    $secureEndpoints = [
+        'logistikita/request_pengiriman',
+        'logistikita/pembayaran_logistik',
+        'logistikita/biaya_layanan_logistik',
+        'logistikita/system_logs',
+        'logistikita/batalkan_pengiriman',
+        'logistikita/beri_tip',
+        'logistikita/pembukuan_perusahaan',
+        'smartbank/saldo'
+    ];
+
+    $isSecure = in_array($apiRequest, $secureEndpoints);
+    
+    // Custom check for tracking_status POST (GET is public)
+    if ($apiRequest === 'logistikita/tracking_status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $isSecure = true;
+    }
+    // Custom check for daftar_pengiriman
+    if ($apiRequest === 'logistikita/daftar_pengiriman') {
+        $isSecure = true;
+    }
+
+    $currentUser = null;
+    if ($isSecure) {
+        $authResult = verifyJWT();
+        if (!$authResult['valid']) {
+            http_response_code(401);
+            $errMessage = $authResult['error'];
+            logApiRequest($connection, $apiRequest, 'Guest/External', 'error', file_get_contents("php://input"), $errMessage);
+            echo json_encode(["status" => "error", "message" => $errMessage]);
+            exit();
+        }
+        $currentUser = $authResult['user'];
+    }
+
+    // Capture response for logging
+    ob_start();
+
     $authController = new AuthController($connection);
     $logistikitaController = new LogistikitaController($connection);
 
@@ -80,6 +163,22 @@ if (strpos($request, 'api/') === 0) {
             echo json_encode(["status" => "error", "message" => "API Endpoint not found: " . $apiRequest]);
             break;
     }
+
+    $responseOutput = ob_get_clean();
+    echo $responseOutput;
+    
+    // Log request to database
+    $userAppStr = $currentUser ? ($currentUser['role'] . ' (ID: ' . $currentUser['id'] . ')') : 'Public/Guest';
+    $payloadData = file_get_contents("php://input");
+    if (empty($payloadData)) {
+        $payloadData = json_encode($_GET);
+    }
+    
+    $responseJSON = json_decode($responseOutput, true);
+    $statusStr = (isset($responseJSON['status']) && $responseJSON['status'] === 'success') ? 'success' : 'error';
+    $errorStr = (isset($responseJSON['message']) && $statusStr === 'error') ? $responseJSON['message'] : null;
+    
+    logApiRequest($connection, $apiRequest, $userAppStr, $statusStr, $payloadData, $errorStr);
     exit();
 }
 

@@ -1,3 +1,29 @@
+// Global fetch interceptor to auto-inject Bearer Token for JWT Authentication
+(function() {
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+        if (typeof input === 'string' && input.includes('index.php?request=api/')) {
+            const userSession = localStorage.getItem('user');
+            let token = '';
+            if (userSession) {
+                try { token = JSON.parse(userSession).token; } catch(e) {}
+            }
+            if (token) {
+                init = init || {};
+                init.headers = init.headers || {};
+                if (init.headers instanceof Headers) {
+                    init.headers.set('Authorization', 'Bearer ' + token);
+                } else {
+                    if (!init.headers['Authorization'] && !init.headers['authorization']) {
+                        init.headers['Authorization'] = 'Bearer ' + token;
+                    }
+                }
+            }
+        }
+        return originalFetch(input, init);
+    };
+})();
+
 // State Machine
 let currentRole = 'admin';
 
@@ -124,7 +150,7 @@ function saveUser() {
         return;
     }
 
-    fetch('http://localhost/logistikita/index.php?request=api/auth/register', {
+    fetch('index.php?request=api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, role })
@@ -148,7 +174,7 @@ function saveUser() {
 }
 
 function loadUsers() {
-    fetch('http://localhost/logistikita/index.php?request=api/auth/users')
+    fetch('index.php?request=api/auth/users')
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
@@ -218,7 +244,7 @@ function loadUsers() {
 }
 
 function loadSystemLogs() {
-    fetch('http://localhost/logistikita/index.php?request=api/logistikita/system_logs')
+    fetch('index.php?request=api/logistikita/system_logs')
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
@@ -378,12 +404,21 @@ function initFinanceChart(grossArray = [0, 0, 0, 0, 0, 0, 0], settlementArray = 
         if (financeChartInstance) {
             financeChartInstance.destroy();
         }
+        
+        const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+        let dynamicLabels = [];
+        for (let i = 6; i >= 0; i--) {
+            let d = new Date();
+            d.setDate(d.getDate() - i);
+            dynamicLabels.push(days[d.getDay()]);
+        }
+
         financeChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+                labels: dynamicLabels,
                 datasets: [{
-                    label: 'Gross Revenue (Juta Rp)',
+                    label: 'Gross Revenue (Rp)',
                     data: grossArray,
                     borderColor: '#10b981',
                     backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -393,7 +428,7 @@ function initFinanceChart(grossArray = [0, 0, 0, 0, 0, 0, 0], settlementArray = 
                     pointRadius: 4,
                     pointBackgroundColor: '#10b981'
                 }, {
-                    label: 'Settlement (Juta Rp)',
+                    label: 'Settlement (Rp)',
                     data: settlementArray,
                     borderColor: '#e11d48',
                     backgroundColor: 'rgba(225, 29, 72, 0.1)',
@@ -448,7 +483,7 @@ function loadAdminData() {
     const userNameEl = document.querySelector('.user-name');
     if (userNameEl) userNameEl.innerText = user.name;
 
-    fetch('http://localhost/logistikita/index.php?request=api/logistikita/daftar_pengiriman&type=all')
+    fetch('index.php?request=api/logistikita/daftar_pengiriman&type=all')
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -519,21 +554,11 @@ function loadAdminData() {
                             </tr>
                         `;
 
-                    let actionHtml = '';
-                    if (item.status === 'pending') {
-                        actionHtml = `<button class="btn-action-primary" onclick="updateStatus('${item.resi}', 'menunggu_pickup')"><i class="fas fa-check"></i> Terima</button>`;
-                    } else if (item.status === 'menunggu_pickup') {
-                        actionHtml = `<button class="btn-action-primary" style="background-color:#3b82f6;" onclick="updateStatus('${item.resi}', 'transit')"><i class="fas fa-truck"></i> Kirim</button>`;
-                    } else if (item.status === 'transit') {
-                        actionHtml = `<button class="btn-action-primary" style="background-color:#10b981;" onclick="updateStatus('${item.resi}', 'delivered')"><i class="fas fa-check-double"></i> Selesai</button>`;
-                    } else {
-                        actionHtml = `<button class="btn-action-secondary" disabled>Sudah Diterima</button>`;
-                    }
+                    let actionHtml = `<span class="status-pill" style="background:#f1f5f9; color:#475569; font-weight:700;"><i class="fas fa-eye"></i> Monitoring</span>`;
 
                     if (tbody) {
                         tbody.innerHTML += `
                                 <tr data-status="${item.status}">
-                                    <td class="check-col"><input type="checkbox" class="custom-checkbox request-check"></td>
                                     <td>
                                         <div style="display: flex; flex-direction: column;">
                                             <span class="text-bold"><span class="urgency-dot urgency-standard"></span>${item.resi}</span>
@@ -619,7 +644,7 @@ function loadAdminData() {
                     let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                     
                     if (diffDays < 7) {
-                        let rev = (parseFloat(item.biaya_ongkir) + parseFloat(item.biaya_layanan || 0) + parseFloat(item.asuransi || 0)) / 1000000;
+                        let rev = parseFloat(item.biaya_ongkir) + parseFloat(item.biaya_layanan || 0) + parseFloat(item.asuransi || 0);
                         gData[6 - diffDays] += rev; // index 6 is today, 5 is yesterday, etc.
                         sData[6 - diffDays] += rev * 0.7; // simulate settlement logic
                     }
@@ -627,7 +652,7 @@ function loadAdminData() {
 
                 if (gData.reduce((a, b) => a + b, 0) === 0) {
                     // Fallback visual if no revenue in last 7 days
-                    gData = [0.1, 0.2, 0.15, 0.3, 0.2, 0.4, 0.5];
+                    gData = [100000, 200000, 150000, 300000, 200000, 400000, 500000];
                     sData = gData.map(v => v * 0.7);
                 }
 
@@ -635,7 +660,7 @@ function loadAdminData() {
             }
         });
 
-    fetch('http://localhost/logistikita/index.php?request=api/logistikita/biaya_layanan_logistik')
+    fetch('index.php?request=api/logistikita/biaya_layanan_logistik')
         .then(r => r.json())
         .then(d => {
             if (d.status === 'success') {
@@ -664,7 +689,7 @@ function updateStatus(resi, newStatus) {
         cancelButtonText: 'Batal'
     }).then((result) => {
         if (result.isConfirmed) {
-            fetch('http://localhost/logistikita/index.php?request=api/logistikita/tracking_status', {
+            fetch('index.php?request=api/logistikita/tracking_status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ resi: resi, status: newStatus, lokasi: 'Admin HQ', keterangan: 'Pesanan diverifikasi' })
@@ -901,7 +926,7 @@ function onScanFailure(error) {
 let bookkeepingDataGlobal = [];
 
 function loadBookkeepingData() {
-    fetch('http://localhost/logistikita/index.php?request=api/logistikita/pembukuan_perusahaan')
+    fetch('index.php?request=api/logistikita/pembukuan_perusahaan')
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -1031,7 +1056,7 @@ function exportBookkeepingToPDF() {
     const rows = bookkeepingDataGlobal.map(item => {
         const dateObj = new Date(item.created_at);
         const timeStr = `${dateObj.getDate()}/${dateObj.getMonth() + 1}/${dateObj.getFullYear()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
-        const amountStr = item.jumlah > 0 ? `Rp ${parseFloat(item.jumlah).toLocaleString('id-ID')}` : 'Rp 0';
+        const amountStr = item.jumlah > 0 ? `Rp ${parseFloat(item.jumlah).toLocaleString('id-ID', {minimumFractionDigits: 0, maximumFractionDigits: 0})}` : 'Rp 0';
         return [
             timeStr,
             item.resi,
@@ -1129,10 +1154,10 @@ function exportFinanceSummaryToPDF() {
 
     const summaryData = [
         ["Indikator Keuangan", "Nilai Kas (Rupiah)", "Keterangan Operasional"],
-        ["Uang Yang Dimiliki (Saldo Bersih)", `Rp ${saldoBersih.toLocaleString('id-ID')}`, "Kas internal perusahaan saat ini"],
-        ["Total Pengeluaran (Beban)", `Rp ${totalPengeluaran.toLocaleString('id-ID')}`, "Komisi kurir, refund, tip diteruskan, pajak"],
-        ["Total Pendapatan Layanan", `Rp ${totalServiceFee.toLocaleString('id-ID')}`, "Fee 5% dari pengiriman terselesaikan"],
-        ["Gross Revenue (Omset)", `Rp ${totalPemasukan.toLocaleString('id-ID')}`, "Akumulasi seluruh transaksi masuk"]
+        ["Uang Yang Dimiliki (Saldo Bersih)", `Rp ${saldoBersih.toLocaleString('id-ID', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`, "Kas internal perusahaan saat ini"],
+        ["Total Pengeluaran (Beban)", `Rp ${totalPengeluaran.toLocaleString('id-ID', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`, "Komisi kurir, refund, tip diteruskan, pajak"],
+        ["Total Pendapatan Layanan", `Rp ${totalServiceFee.toLocaleString('id-ID', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`, "Fee 5% dari pengiriman terselesaikan"],
+        ["Gross Revenue (Omset)", `Rp ${totalPemasukan.toLocaleString('id-ID', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`, "Akumulasi seluruh transaksi masuk"]
     ];
 
     doc.autoTable({
@@ -1177,3 +1202,9 @@ function exportFinanceSummaryToPDF() {
 window.exportBookkeepingToPDF = exportBookkeepingToPDF;
 window.exportFinanceSummaryToPDF = exportFinanceSummaryToPDF;
 window.loadBookkeepingData = loadBookkeepingData;
+
+function logoutAdmin() {
+    localStorage.removeItem('user');
+    window.location.href = 'auth';
+}
+window.logoutAdmin = logoutAdmin;

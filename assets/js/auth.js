@@ -13,7 +13,7 @@ if (loginForm) {
         btn.disabled = true;
         btn.style.opacity = '0.8';
 
-        fetch('api/auth/login', {
+        fetch('index.php?request=api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
@@ -76,7 +76,7 @@ if (registerForm) {
         btn.disabled = true;
         btn.style.opacity = '0.8';
 
-        fetch('api/auth/register', {
+        fetch('index.php?request=api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, email, password, role: 'user' }) // Default register as user

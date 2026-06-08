@@ -1,7 +1,36 @@
+// Global fetch interceptor to auto-inject Bearer Token for JWT Authentication
+(function() {
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+        if (typeof input === 'string' && input.includes('index.php?request=api/')) {
+            const userSession = localStorage.getItem('user');
+            let token = '';
+            if (userSession) {
+                try { token = JSON.parse(userSession).token; } catch(e) {}
+            }
+            if (token) {
+                init = init || {};
+                init.headers = init.headers || {};
+                if (init.headers instanceof Headers) {
+                    init.headers.set('Authorization', 'Bearer ' + token);
+                } else {
+                    if (!init.headers['Authorization'] && !init.headers['authorization']) {
+                        init.headers['Authorization'] = 'Bearer ' + token;
+                    }
+                }
+            }
+        }
+        return originalFetch(input, init);
+    };
+})();
+
 let map;
 let packageCount = 12;
 let activeResi = null;
 let globalActiveMission = null;
+let knapsackEnabled = false;
+let maxCapacity = 20;
+let currentShipments = [];
 
 const upcomingList = document.getElementById('upcoming-task-list');
 const historyBody = document.getElementById('history-table-body');
@@ -145,7 +174,7 @@ function loadKurirData() {
     if (profAvatar) profAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0f172a&color=ffffff&bold=true&size=150`;
 
     // Fetch SmartBank balance
-    fetch(`api/smartbank/saldo?email=${encodeURIComponent(user.email)}`)
+    fetch(`index.php?request=api/smartbank/saldo&email=${encodeURIComponent(user.email)}`)
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -157,13 +186,14 @@ function loadKurirData() {
         })
         .catch(err => console.error("Error loading courier balance:", err));
 
-    fetch('api/logistikita/daftar_pengiriman?type=kurir')
+    fetch('index.php?request=api/logistikita/daftar_pengiriman&type=kurir')
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
                 const pengiriman = data.data;
+                currentShipments = pengiriman; // Store fetched shipments globally
+                
                 const earningsHistory = document.getElementById('earnings-history');
-
                 if (upcomingList) upcomingList.innerHTML = '';
                 if (historyBody) historyBody.innerHTML = '';
                 if (mobileHistory) mobileHistory.innerHTML = '';
@@ -173,46 +203,20 @@ function loadKurirData() {
                 let totalProfit = 0;
                 globalActiveMission = null;
 
-                if (pengiriman.length === 0) {
-                    if (upcomingList) upcomingList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-gray);">Belum ada paket untuk diantar.</div>';
-                    if (historyBody) historyBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Belum ada riwayat misi</td></tr>';
-                    if (mobileHistory) mobileHistory.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-gray);">Belum ada riwayat misi</div>';
-                    if (earningsHistory) earningsHistory.innerHTML = '<div style="padding: 20px; text-align:center; color:var(--text-gray);">Belum ada komisi masuk.</div>';
-                    const statPackages = document.getElementById('stat-packages');
-                    if (statPackages) statPackages.innerText = '0';
-                    const statProfit = document.getElementById('stat-profit');
-                    if (statProfit) statProfit.innerText = 'Rp 0';
-                    initMap(); // Draw empty map
-                    return;
+                // Find active mission first
+                for (let item of currentShipments) {
+                    if (item.status === 'transit') {
+                        globalActiveMission = item;
+                        break;
+                    }
                 }
 
-                pengiriman.forEach(item => {
+                currentShipments.forEach(item => {
                     const dateObj = new Date(item.created_at);
                     const timeStr = `${dateObj.getDate()} ${dateObj.toLocaleString('id-ID', { month: 'short' })}, ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
 
                     if (item.status !== 'delivered') {
-                        if (item.status === 'transit' && !globalActiveMission) {
-                            globalActiveMission = item; // Store first active mission
-                        }
-
                         pkgCount++;
-                        if (upcomingList) {
-                            upcomingList.innerHTML += `
-                                <div class="task-item" onclick="viewActiveMission('${item.resi}', '${item.penerima_nama}', '${item.status}')">
-                                    <div style="display:flex; align-items:center; gap:14px;">
-                                        <div class="kpi-icon" style="width:48px; height:48px; font-size: 1.2rem;"><i class="fas fa-box"></i></div>
-                                        <div>
-                                            <div style="font-weight:900; font-size: 0.9rem;">${item.resi}</div>
-                                            <div style="font-size:0.75rem; color:var(--text-gray);">${item.status.toUpperCase()}</div>
-                                        </div>
-                                    </div>
-                                    <div style="display:flex; gap: 8px;">
-                                        <button class="btn-primary" style="padding: 6px 12px; font-size: 0.7rem; border-radius: 8px;" onclick="event.stopPropagation(); updateStatus('${item.resi}', 'transit')">PICKUP</button>
-                                        <button class="btn-primary" style="padding: 6px 12px; font-size: 0.7rem; border-radius: 8px; background:var(--brand-green);" onclick="event.stopPropagation(); updateStatus('${item.resi}', 'delivered')">DONE</button>
-                                    </div>
-                                </div>
-                            `;
-                        }
                     } else {
                         // History & Earnings (Commission 10% + Tips)
                         const profit = Math.floor(item.biaya_ongkir * 0.1);
@@ -274,16 +278,174 @@ function loadKurirData() {
                 const statProfit = document.getElementById('stat-profit');
                 if (statProfit) statProfit.innerText = formatter.format(totalProfit);
 
-                if (pkgCount === 0 && upcomingList) {
-                    upcomingList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-gray);">Semua misi telah selesai!</div>';
+                if (currentShipments.length === 0) {
+                    if (historyBody) historyBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Belum ada riwayat misi</td></tr>';
+                    if (mobileHistory) mobileHistory.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-gray);">Belum ada riwayat misi</div>';
+                    if (earningsHistory) earningsHistory.innerHTML = '<div style="padding: 20px; text-align:center; color:var(--text-gray);">Belum ada komisi masuk.</div>';
                 }
-                if (totalProfit === 0 && earningsHistory) {
-                    earningsHistory.innerHTML = '<div style="padding: 20px; text-align:center; color:var(--text-gray);">Belum ada komisi masuk.</div>';
-                }
+
+                // Render active tasks using Greedy Knapsack logic
+                renderUpcomingTasks();
 
                 initMap();
             }
         });
+}
+
+function solveKnapsack() {
+    if (!knapsackEnabled) return { selectedResi: [], totalWeight: 0, totalProfit: 0 };
+
+    // 1. Ambil paket yang statusnya belum selesai (delivered)
+    let activeItems = currentShipments.filter(item => item.status !== 'delivered');
+
+    // 2. Petakan paket dengan atribut Knapsack
+    let knapsackItems = activeItems.map(item => {
+        const berat = parseFloat(item.berat) || 0;
+        const ongkir = parseFloat(item.biaya_ongkir) || 0;
+        const profit = Math.floor(ongkir * 0.1); // Komisi kurir 10%
+        // Densitas Nilai (Value Density) = profit / berat. Hindari pembagian dengan 0.
+        const density = berat > 0 ? profit / berat : profit;
+        return {
+            resi: item.resi,
+            berat: berat,
+            profit: profit,
+            density: density,
+            original: item
+        };
+    });
+
+    // 3. Sortir paket berdasarkan Densitas tertinggi ke terendah (Greedy Heuristic)
+    // Jika densitas sama, pilih berat yang lebih ringan terlebih dahulu
+    knapsackItems.sort((a, b) => {
+        if (b.density !== a.density) {
+            return b.density - a.density;
+        }
+        return a.berat - b.berat;
+    });
+
+    // 4. Proses Greedy Selection
+    let selectedResi = [];
+    let currentWeight = 0;
+    let currentProfit = 0;
+
+    for (let item of knapsackItems) {
+        if (currentWeight + item.berat <= maxCapacity) {
+            selectedResi.push(item.resi);
+            currentWeight += item.berat;
+            currentProfit += item.profit;
+        }
+    }
+
+    return {
+        selectedResi: selectedResi,
+        totalWeight: currentWeight,
+        totalProfit: currentProfit
+    };
+}
+
+function toggleKnapsack(checkbox) {
+    knapsackEnabled = checkbox.checked;
+    const controls = document.getElementById('knapsack-controls');
+    if (controls) {
+        controls.style.display = knapsackEnabled ? 'block' : 'none';
+    }
+    renderUpcomingTasks();
+}
+
+function updateCapacity(val) {
+    maxCapacity = parseInt(val) || 20;
+    const capacityVal = document.getElementById('capacity-value');
+    if (capacityVal) {
+        capacityVal.innerText = maxCapacity + ' Kg';
+    }
+    renderUpcomingTasks();
+}
+
+function renderUpcomingTasks() {
+    if (!upcomingList) return;
+    upcomingList.innerHTML = '';
+
+    const knapsackResult = solveKnapsack();
+    let activeItems = currentShipments.filter(item => item.status !== 'delivered');
+
+    if (activeItems.length === 0) {
+        upcomingList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-gray);">Semua misi telah selesai!</div>';
+        updateKnapsackSummary(0, 0);
+        return;
+    }
+
+    // Jika optimasi Knapsack aktif, urutkan agar rekomendasi Greedy berada di paling atas
+    if (knapsackEnabled) {
+        activeItems.sort((a, b) => {
+            const aSelected = knapsackResult.selectedResi.includes(a.resi) ? 1 : 0;
+            const bSelected = knapsackResult.selectedResi.includes(b.resi) ? 1 : 0;
+            return bSelected - aSelected;
+        });
+    }
+
+    activeItems.forEach(item => {
+        const isSelected = knapsackEnabled && knapsackResult.selectedResi.includes(item.resi);
+        const weight = parseFloat(item.berat) || 0;
+        const profit = Math.floor((parseFloat(item.biaya_ongkir) || 0) * 0.1);
+        
+        let badge = '';
+        let cardStyle = 'background: white; border: 1px solid var(--card-border);';
+        
+        if (isSelected) {
+            badge = `<span class="status-pill success" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 0.65rem; display: inline-flex; align-items: center; gap: 4px; text-transform: uppercase;"><i class="fas fa-truck-ramp-box"></i> Rekomendasi Angkut</span>`;
+            cardStyle = 'background: #f0f9ff; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.1);';
+        }
+
+        upcomingList.innerHTML += `
+            <div class="task-item" style="${cardStyle}" onclick="viewActiveMission('${item.resi}', '${item.penerima_nama}', '${item.status}')">
+                <div style="display:flex; align-items:center; gap:14px; flex: 1;">
+                    <div class="kpi-icon" style="width:48px; height:48px; font-size: 1.2rem; background: ${isSelected ? '#e0f2fe' : '#f1f5f9'}; color: ${isSelected ? '#0284c7' : 'var(--brand-red)'};"><i class="fas fa-box"></i></div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="font-weight:900; font-size: 0.9rem;">${item.resi}</span>
+                            ${badge}
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--text-gray); margin-top: 4px;">
+                            Status: <strong style="color:var(--brand-dark);">${item.status.toUpperCase()}</strong> | 
+                            Berat: <strong style="color:var(--brand-dark);">${weight} Kg</strong> | 
+                            Komisi: <strong style="color:var(--brand-green);">Rp ${profit.toLocaleString('id-ID')}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; gap: 8px; margin-left: 12px;">
+                    <button class="btn-primary" style="padding: 6px 12px; font-size: 0.7rem; border-radius: 8px;" onclick="event.stopPropagation(); updateStatus('${item.resi}', 'transit')">PICKUP</button>
+                    <button class="btn-primary" style="padding: 6px 12px; font-size: 0.7rem; border-radius: 8px; background:var(--brand-green);" onclick="event.stopPropagation(); updateStatus('${item.resi}', 'delivered')">DONE</button>
+                </div>
+            </div>
+        `;
+    });
+
+    updateKnapsackSummary(knapsackResult.totalWeight, knapsackResult.totalProfit);
+}
+
+function updateKnapsackSummary(weight, profit) {
+    const totalWeightText = document.getElementById('knapsack-total-weight');
+    const progressBar = document.getElementById('knapsack-progress-bar');
+    const totalProfitText = document.getElementById('knapsack-total-profit');
+
+    if (totalWeightText) {
+        totalWeightText.innerText = `${weight.toFixed(1)} / ${maxCapacity} Kg`;
+    }
+    if (progressBar) {
+        const percent = Math.min(100, (weight / maxCapacity) * 100);
+        progressBar.style.width = percent + '%';
+        if (percent > 90) {
+            progressBar.style.backgroundColor = '#ef4444'; // Red if near/over capacity
+        } else if (percent > 70) {
+            progressBar.style.backgroundColor = '#f59e0b'; // Amber if high load
+        } else {
+            progressBar.style.backgroundColor = 'var(--brand-green)'; // Safe Green
+        }
+    }
+    if (totalProfitText) {
+        const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+        totalProfitText.innerText = formatter.format(profit);
+    }
 }
 
 function updateStatus(resi, newStatus) {
@@ -298,7 +460,7 @@ function updateStatus(resi, newStatus) {
         cancelButtonText: 'Batal'
     }).then((result) => {
         if (result.isConfirmed) {
-            fetch('api/logistikita/tracking_status', {
+            fetch('index.php?request=api/logistikita/tracking_status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ resi: resi, status: newStatus, lokasi: 'Kurir App', keterangan: 'Updated by Courier' })
@@ -348,5 +510,7 @@ window.openActiveMission = openActiveMission;
 window.logoutKurir = logoutKurir;
 window.updateStatus = updateStatus;
 window.simulateScan = simulateScan;
+window.toggleKnapsack = toggleKnapsack;
+window.updateCapacity = updateCapacity;
 
 document.addEventListener('DOMContentLoaded', loadKurirData);

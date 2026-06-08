@@ -810,3 +810,150 @@ body {
         gap: 16px;
     }
 }
+
+.batch-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.batch-count {
+    background: var(--brand-red);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 0.85rem;
+}
+
+.batch-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-batch-approve {
+    background: var(--brand-green);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-batch-approve:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.btn-batch-reject {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.btn-batch-reject:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.urgency-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.urgency-high {
+    background: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.urgency-standard {
+    background: #3b82f6;
+}
+
+.urgency-vip {
+    background: #f59e0b;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+.elapsed-timer {
+    font-size: 0.75rem;
+    color: var(--text-gray);
+    font-weight: 600;
+}
+
+/* Checkbox Styling */
+.check-col {
+    width: 40px;
+    text-align: center;
+}
+
+.custom-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--brand-red);
+}
+
+/* -----------------------
+   4. STATUS TABS & GROUPING
+   ----------------------- */
+.status-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 1px;
+}
+
+.status-tab {
+    padding: 12px 20px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-gray);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-tab:hover {
+    color: var(--text-dark);
+}
+
+.status-tab.active {
+    color: var(--brand-red);
+}
+
+.status-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--brand-red);
+    border-radius: 3px 3px 0 0;
+}
+
+.tab-count {
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    color: #475569;
+}
+
+.status-tab.active .tab-count {
+    background: var(--brand-red);
+    color: white;
+}
+

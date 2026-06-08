@@ -47,9 +47,12 @@ class Pengiriman {
         $biaya_ongkir = (float)$data['biaya_ongkir'];
         $biaya_layanan = $biaya_ongkir * 0.05;
 
+        $ext_order_id = isset($data['ext_order_id']) && $data['ext_order_id'] !== '' ? (int)$data['ext_order_id'] : 'NULL';
+        $ext_user_id = isset($data['ext_user_id']) && $data['ext_user_id'] !== '' ? (int)$data['ext_user_id'] : 'NULL';
+
         $sql = "INSERT INTO " . $this->table_name . " 
-                (user_id, resi, pengirim_nama, pengirim_telp, pengirim_alamat, penerima_nama, penerima_telp, penerima_alamat, berat, layanan_id, asuransi, biaya_ongkir, biaya_layanan, status) 
-                VALUES ($user_id, '$resi', '$pengirim_nama', '$pengirim_telp', '$pengirim_alamat', '$penerima_nama', '$penerima_telp', '$penerima_alamat', $berat, $layanan_id, $asuransi, $biaya_ongkir, $biaya_layanan, 'pending')";
+                (user_id, ext_order_id, ext_user_id, resi, pengirim_nama, pengirim_telp, pengirim_alamat, penerima_nama, penerima_telp, penerima_alamat, berat, layanan_id, asuransi, biaya_ongkir, biaya_layanan, status) 
+                VALUES ($user_id, $ext_order_id, $ext_user_id, '$resi', '$pengirim_nama', '$pengirim_telp', '$pengirim_alamat', '$penerima_nama', '$penerima_telp', '$penerima_alamat', $berat, $layanan_id, $asuransi, $biaya_ongkir, $biaya_layanan, 'pending')";
 
         try {
             if ($this->conn->query($sql) === TRUE) {
@@ -63,6 +66,8 @@ class Pengiriman {
                     'biaya_ongkir' => $biaya_ongkir,
                     'biaya_layanan' => $biaya_layanan,
                     'total_bayar' => $biaya_ongkir + $biaya_layanan + $asuransi,
+                    'ext_order_id' => $ext_order_id !== 'NULL' ? $ext_order_id : null,
+                    'ext_user_id' => $ext_user_id !== 'NULL' ? $ext_user_id : null,
                     'status' => 'pending'
                 ];
             }
@@ -109,6 +114,7 @@ class Pengiriman {
         $sql = "UPDATE " . $this->table_name . " SET status = '$status' WHERE resi = '$resi'";
         if ($this->conn->query($sql) === TRUE) {
             $this->addRiwayat($id, $status, $lokasi, $keterangan);
+            $this->triggerWebhookCallback($resi, $status, $shipment['ext_order_id'] ?? null);
             
             // Log ke Pembukuan
             $status_barang = 'transit_hub';
@@ -223,11 +229,11 @@ class Pengiriman {
 
     public function updatePaymentStatus($id, $bank_ref, $amount) {
         $id = (int)$id;
-        $sql = "UPDATE " . $this->table_name . " SET is_paid = TRUE, status = 'menunggu_pickup' WHERE id = $id";
+        $sql = "UPDATE " . $this->table_name . " SET is_paid = TRUE, status = 'pending' WHERE id = $id";
         if($this->conn->query($sql)) {
             $bank_ref = $this->conn->real_escape_string($bank_ref);
             $this->conn->query("INSERT INTO pembayaran (pengiriman_id, bank_ref, amount, payment_type) VALUES ($id, '$bank_ref', $amount, 'payment_logistik')");
-            $this->addRiwayat($id, 'menunggu_pickup', 'Sistem', 'Pembayaran terkonfirmasi (Ref: ' . $bank_ref . ')');
+            $this->addRiwayat($id, 'pending', 'Sistem', 'Pembayaran terkonfirmasi (Ref: ' . $bank_ref . '). Menunggu verifikasi Operator.');
             
             $shipment = $this->findById($id);
             if ($shipment) {
@@ -336,6 +342,32 @@ class Pengiriman {
             }
         }
         return $logs;
+    }
+
+    public function triggerWebhookCallback($resi, $status, $ext_order_id) {
+        if (!$ext_order_id) return;
+        
+        $payload = [
+            'app' => 'LogistiKita',
+            'resi' => $resi,
+            'ext_order_id' => $ext_order_id,
+            'status' => $status,
+            'waktu_update' => date('Y-m-d H:i:s')
+        ];
+
+        // Rute Gateway Callback (menampung slot untuk integrasi luar)
+        $gatewayUrl = 'http://localhost/gateway/index.php?request=api/callback';
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $gatewayUrl);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 2); // Timeout cepat agar tidak memblokir thread
+
+        $response = curl_exec($ch);
+        curl_close($ch);
     }
 }
 ?>

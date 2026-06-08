@@ -19,153 +19,7 @@
     <!-- HTML5 QrCode (Camera Scanner) -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link rel="stylesheet" href="assets/css/admin.css">
-    <style>
-        .batch-info {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
 
-        .batch-count {
-            background: var(--brand-red);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 0.85rem;
-        }
-
-        .batch-buttons {
-            display: flex;
-            gap: 12px;
-        }
-
-        .btn-batch-approve {
-            background: var(--brand-green);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-batch-approve:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.1);
-        }
-
-        .btn-batch-reject {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .btn-batch-reject:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .urgency-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-
-        .urgency-high {
-            background: #ef4444;
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
-        }
-
-        .urgency-standard {
-            background: #3b82f6;
-        }
-
-        .urgency-vip {
-            background: #f59e0b;
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-        }
-
-        .elapsed-timer {
-            font-size: 0.75rem;
-            color: var(--text-gray);
-            font-weight: 600;
-        }
-
-        /* Checkbox Styling */
-        .check-col {
-            width: 40px;
-            text-align: center;
-        }
-
-        .custom-checkbox {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-            accent-color: var(--brand-red);
-        }
-
-        /* -----------------------
-           4. STATUS TABS & GROUPING
-           ----------------------- */
-        .status-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 1px;
-        }
-
-        .status-tab {
-            padding: 12px 20px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            color: var(--text-gray);
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .status-tab:hover {
-            color: var(--text-dark);
-        }
-
-        .status-tab.active {
-            color: var(--brand-red);
-        }
-
-        .status-tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--brand-red);
-            border-radius: 3px 3px 0 0;
-        }
-
-        .tab-count {
-            background: #f1f5f9;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            color: #475569;
-        }
-
-        .status-tab.active .tab-count {
-            background: var(--brand-red);
-            color: white;
-        }
-    </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -201,9 +55,7 @@
                 <div class="sidebar-item" data-target="reports-view">
                     <i class="fas fa-file-invoice"></i> Laporan
                 </div>
-                <div class="sidebar-item" data-target="hub-ops-view">
-                    <i class="fas fa-barcode"></i> Operasional Hub
-                </div>
+
             </div>
         </div>
 
@@ -224,7 +76,7 @@
                     <span class="user-name">Fiqry F.</span>
                     <span class="user-role" id="currentRoleLabel">System Admin</span>
                 </div>
-                <a href="auth" class="btn-logout-side" title="Logout">
+                <a href="javascript:void(0)" onclick="logoutAdmin()" class="btn-logout-side" title="Logout">
                     <i class="fas fa-sign-out-alt"></i>
                 </a>
             </div>
@@ -333,8 +185,6 @@
                         <table class="enterprise-table" id="approvalTable">
                             <thead>
                                 <tr>
-                                    <th class="check-col"><input type="checkbox" class="custom-checkbox"
-                                            id="selectAllRequests"></th>
                                     <th>Detail Pengiriman</th>
                                     <th>Layanan & Tujuan</th>
                                     <th>Status Tracking</th>
@@ -348,17 +198,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <!-- Batch Action Bar -->
-                    <div class="batch-action-bar" id="batchBar">
-                        <div class="batch-info">
-                            <span class="batch-count" id="batchCount">0</span>
-                            <span>Permohonan Terpilih</span>
-                        </div>
-                        <div class="batch-buttons">
-                            <button class="btn-batch-reject">Tolak Masal</button>
-                            <button class="btn-batch-approve"><i class="fas fa-check-double"></i> Setujui Masal</button>
-                        </div>
-                    </div>
+
                 </div>
 
                 <!-- Map Placeholder Panel -->
@@ -832,94 +672,7 @@
             </div>
         </div>
 
-        <!-- ===========================
-             VIEW: HUB OPERATIONS
-             =========================== -->
-        <div id="hub-ops-view" class="view-section">
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">Operasional Hub</h1>
-                    <p class="page-subtitle">Sistem pemindaian barcode cepat untuk update status paket di Hub.</p>
-                </div>
-            </div>
 
-            <div class="layout-grid">
-                <!-- Barcode Scanner Form -->
-                <div class="panel-card" style="align-self: start;">
-                    <div class="panel-header">
-                        <div>
-                            <h3><i class="fas fa-barcode"></i> Scanner Barcode Resi</h3>
-                            <p>Arahkan kursor ke input di bawah ini sebelum memindai.</p>
-                        </div>
-                    </div>
-                    <div style="padding: 24px;">
-                        <form id="hubScannerForm" onsubmit="event.preventDefault(); submitHubUpdate();">
-                            <div class="form-group-lite" style="margin-bottom: 20px;">
-                                <label
-                                    style="font-weight: 700; color: #0f172a; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Nomor Resi</span>
-                                    <button type="button" onclick="startCameraScan()"
-                                        style="background: #eff6ff; color: #3b82f6; border: none; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer;"><i
-                                            class="fas fa-camera"></i> Scan Kamera</button>
-                                </label>
-                                <div id="reader"
-                                    style="width: 100%; display: none; margin-bottom: 12px; border-radius: 12px; overflow: hidden; border: 2px solid #e2e8f0;">
-                                </div>
-                                <input type="text" id="scanResiInput" placeholder="Scan Barcode Resi di sini..."
-                                    autofocus
-                                    style="width: 100%; padding: 16px; font-size: 1.2rem; font-weight: 800; border: 2px solid #e2e8f0; border-radius: 12px; color: #0f172a;"
-                                    autocomplete="off">
-                            </div>
-
-                            <div class="form-group-lite" style="margin-bottom: 20px;">
-                                <label
-                                    style="font-weight: 700; color: #0f172a; margin-bottom: 8px; display: block;">Lokasi
-                                    Cabang / Hub</label>
-                                <input type="text" id="scanLocationInput" value="" readonly
-                                    style="width: 100%; padding: 12px; font-size: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #f1f5f9; color: #64748b; cursor: not-allowed;">
-                            </div>
-
-                            <div class="form-group-lite" style="margin-bottom: 24px;">
-                                <label
-                                    style="font-weight: 700; color: #0f172a; margin-bottom: 8px; display: block;">Aksi
-                                    Status</label>
-                                <select id="scanStatusAction"
-                                    style="width: 100%; padding: 12px; font-size: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; color: #0f172a; background-color: white;">
-                                    <option value="Barang sudah diterima di Hub">Barang sudah diterima di Hub</option>
-                                    <option value="Barang keluar dari Hub">Barang keluar dari Hub</option>
-                                </select>
-                            </div>
-
-                            <button type="submit" id="btnUpdateScan"
-                                style="width: 100%; background: #10b981; color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 800; font-size: 1.1rem; cursor: pointer; transition: all 0.2s;"><i
-                                    class="fas fa-check-circle"></i> Update Status (Enter)</button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Session Scan History -->
-                <div class="panel-card">
-                    <div class="panel-header">
-                        <div>
-                            <h3><i class="fas fa-list-check"></i> Riwayat Scan Sesi Ini</h3>
-                            <p>Data paket yang berhasil diperbarui.</p>
-                        </div>
-                        <div class="badge"
-                            style="background: #eff6ff; color: #3b82f6; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem;"
-                            id="sessionScanCount">0 Paket</div>
-                    </div>
-                    <div style="padding: 0;">
-                        <ul id="scanHistoryList" style="list-style: none; margin: 0; padding: 0;">
-                            <li id="emptyScanState" style="padding: 40px 24px; text-align: center; color: #94a3b8;">
-                                <i class="fas fa-box-open"
-                                    style="font-size: 2rem; margin-bottom: 12px; color: #cbd5e1;"></i>
-                                <p style="margin: 0;">Belum ada resi yang di-scan pada sesi ini.</p>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- ===========================
              VIEW 7: SETTLEMENT
@@ -1046,7 +799,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="assets/js/admin.js?v=20260519"></script>
+    <script src="assets/js/admin.js?v=20260602"></script>
 </body>
 
 </html>

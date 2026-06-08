@@ -1,3 +1,29 @@
+// Global fetch interceptor to auto-inject Bearer Token for JWT Authentication
+(function() {
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+        if (typeof input === 'string' && input.includes('index.php?request=api/')) {
+            const userSession = localStorage.getItem('user');
+            let token = '';
+            if (userSession) {
+                try { token = JSON.parse(userSession).token; } catch(e) {}
+            }
+            if (token) {
+                init = init || {};
+                init.headers = init.headers || {};
+                if (init.headers instanceof Headers) {
+                    init.headers.set('Authorization', 'Bearer ' + token);
+                } else {
+                    if (!init.headers['Authorization'] && !init.headers['authorization']) {
+                        init.headers['Authorization'] = 'Bearer ' + token;
+                    }
+                }
+            }
+        }
+        return originalFetch(input, init);
+    };
+})();
+
 const tabs = document.querySelectorAll('.hub-tab');
 const panes = document.querySelectorAll('.tab-pane');
 
@@ -75,7 +101,7 @@ if (btnHitung) {
 
         btnHitung.innerText = 'Menghitung...';
 
-        fetch('http://localhost/logistikita/index.php?request=api/logistikita/biaya_pengiriman', {
+        fetch('index.php?request=api/logistikita/biaya_pengiriman', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ asal, tujuan, berat, layanan })
@@ -122,7 +148,7 @@ if (btnTrack) {
 
         btnTrack.innerText = 'Mencari...';
 
-        fetch('http://localhost/logistikita/index.php?request=api/logistikita/tracking_status&resi=' + resi, {
+        fetch('index.php?request=api/logistikita/tracking_status&resi=' + resi, {
             method: 'GET'
         })
             .then(res => res.json())
@@ -250,7 +276,7 @@ if (bookingForm) {
             nilai_barang: nilaiBarang
         };
 
-        fetch('http://localhost/logistikita/index.php?request=api/logistikita/request_pengiriman', {
+        fetch('index.php?request=api/logistikita/request_pengiriman', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -261,7 +287,7 @@ if (bookingForm) {
                 if (data.status === 'success') {
                     // Jika SmartBank terpilih, otomatis bayar
                     if (paymentSelect === 'smartbank') {
-                        fetch('http://localhost/logistikita/index.php?request=api/logistikita/pembayaran_logistik', {
+                        fetch('index.php?request=api/logistikita/pembayaran_logistik', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ pengiriman_id: data.data.pengiriman_id })
@@ -325,6 +351,17 @@ function loadUserData() {
     }
 
     const user = JSON.parse(userSession);
+    if (user.role === 'admin') {
+        window.location.href = 'admin';
+        return;
+    } else if (user.role === 'kurir') {
+        window.location.href = 'kurir';
+        return;
+    } else if (user.role === 'operator') {
+        window.location.href = 'operator';
+        return;
+    }
+
     const navUserName = document.getElementById('nav-user-name');
     if (navUserName) navUserName.innerText = user.name;
 
@@ -341,7 +378,7 @@ function loadUserData() {
     if (pengirimNama) pengirimNama.value = user.name;
 
     // Fetch SmartBank Balance
-    fetch(`http://localhost/logistikita/index.php?request=api/smartbank/saldo&email=${user.email}`)
+    fetch('index.php?request=api/smartbank/saldo&email=' + encodeURIComponent(user.email))
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -355,7 +392,7 @@ function loadUserData() {
         .catch(err => console.error("Error fetching balance:", err));
 
     // Fetch History
-    fetch(`http://localhost/logistikita/index.php?request=api/logistikita/daftar_pengiriman&type=user&user_id=${user.id}`)
+    fetch('index.php?request=api/logistikita/daftar_pengiriman&type=user&user_id=' + user.id)
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -371,29 +408,20 @@ function loadUserData() {
                 if (pengiriman.length === 0) {
                     if (historyContainer) {
                         historyContainer.innerHTML = `
-                            <div style="background-color: var(--gray-50); border-radius: 20px; padding: 32px; margin-bottom: 24px; border: 1px solid var(--gray-100);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                                    <div>
-                                        <h4 style="font-size: 1.2rem; font-weight: 800; color: var(--brand-dark);">LKT-H9X7Y2</h4>
-                                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Menuju: Budi Santoso (Jl. Sudirman No...)</p>
-                                    </div>
-                                    <span class="status-badge delivered">SELESAI</span>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-                                    <i class="fas fa-box-open" style="font-size: 2rem; color: #10b981;"></i>
-                                    <div>
-                                        <p style="font-weight: 700;">Paket dalam status: Selesai</p>
-                                        <p style="font-size: 0.8rem; color: var(--text-secondary);">Dibuat: 11 Mei 2026</p>
-                                    </div>
-                                </div>
-                                <div style="display: flex; gap: 12px; border-top: 1px dashed var(--gray-100); padding-top: 20px;">
-                                    <button onclick="openHistoryDetail('LKT-H9X7Y2')" style="flex: 1; padding: 12px; border: 1px solid var(--brand-primary); background: white; color: var(--brand-primary); border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--brand-primary)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--brand-primary)'"><i class="fas fa-map-marked-alt"></i> Peta & Detail Riwayat</button>
-                                    <button onclick="openHistoryDetail('LKT-H9X7Y2'); setTimeout(() => { document.getElementById('custom-tip-amount').focus(); }, 500);" style="flex: 1; padding: 12px; border: none; background: #10b981; color: white; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'"><i class="fas fa-hand-holding-dollar"></i> Beri Tip Kurir</button>
-                                </div>
+                            <div style="text-align: center; padding: 48px 20px; color: var(--text-secondary);">
+                                <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;"></i>
+                                <p style="font-weight: 600; margin: 0;">Belum ada riwayat pengiriman.</p>
                             </div>
                         `;
                     }
-                    if (activeContainer) activeContainer.innerHTML = '<p style="text-align:center; padding: 20px; color: var(--text-secondary);">Tidak ada pengiriman aktif</p>';
+                    if (activeContainer) {
+                        activeContainer.innerHTML = `
+                            <div style="text-align: center; padding: 48px 20px; color: var(--text-secondary);">
+                                <i class="fas fa-route" style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;"></i>
+                                <p style="font-weight: 600; margin: 0;">Tidak ada pengiriman aktif.</p>
+                            </div>
+                        `;
+                    }
                     return;
                 }
 
@@ -434,7 +462,7 @@ function loadUserData() {
                                             <div>
                                                 <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Penerima</p>
                                                 <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">${item.penerima_nama}</p>
-                                                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #475569; line-height: 1.4;">${item.penerima_alamat.substring(0, 30)}...</p>
+                                                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #475569; line-height: 1.4;">${(item.penerima_alamat || '').substring(0, 30)}...</p>
                                             </div>
                                         </div>
                                     </div>
@@ -476,6 +504,16 @@ function loadUserData() {
                         hasActive = true;
                         let icon = 'fa-boxes';
                         if (item.status === 'transit') icon = 'fa-truck-fast';
+                        else if (item.status === 'delivery') icon = 'fa-truck-ramp-box';
+
+                        const statusNames = {
+                            'pending': 'Menunggu Verifikasi Operator',
+                            'menunggu_pickup': 'Menunggu Penjemputan Kurir',
+                            'transit': 'Transit Hub Terminal',
+                            'delivery': 'Sedang Diantar Kurir',
+                            'batal': 'Pesanan Dibatalkan'
+                        };
+                        const displayStatus = statusNames[item.status] || item.status.toUpperCase();
 
                         if (activeContainer) {
                             activeContainer.innerHTML += `
@@ -483,16 +521,19 @@ function loadUserData() {
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
                                         <div>
                                             <h4 style="font-size: 1.2rem; font-weight: 800; color: var(--brand-dark);">${item.resi}</h4>
-                                            <p style="color: var(--text-secondary); font-size: 0.9rem;">Menuju: ${item.penerima_nama} (${item.penerima_alamat.substring(0, 15)}...)</p>
+                                            <p style="color: var(--text-secondary); font-size: 0.9rem;">Menuju: ${item.penerima_nama} (${(item.penerima_alamat || '').substring(0, 15)}...)</p>
                                         </div>
                                         <span class="status-badge ${badgeClass}">${item.status.toUpperCase()}</span>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 16px;">
+                                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
                                         <i class="fas ${icon}" style="font-size: 2rem; color: var(--brand-primary);"></i>
                                         <div>
-                                            <p style="font-weight: 700;">Paket dalam status: ${item.status.replace('_', ' ')}</p>
+                                            <p style="font-weight: 700;">Paket dalam status: ${displayStatus}</p>
                                             <p style="font-size: 0.8rem; color: var(--text-secondary);">Dibuat: ${dateStr}</p>
                                         </div>
+                                    </div>
+                                    <div style="display: flex; gap: 12px; border-top: 1px dashed var(--gray-100); padding-top: 20px;">
+                                        <button onclick="openDetailModal('${item.resi}')" style="flex: 1; padding: 12px; border: 1px solid var(--brand-primary); background: white; color: var(--brand-primary); border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--brand-primary)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--brand-primary)'"><i class="fas fa-map-marked-alt"></i> Peta & Detail Riwayat</button>
                                     </div>
                                 </div>
                             `;
@@ -504,265 +545,55 @@ function loadUserData() {
                     activeContainer.innerHTML = '<p style="text-align:center; padding: 20px; color: var(--text-secondary);">Tidak ada pengiriman aktif</p>';
                 }
             } else {
-                // If API returns error (e.g. no shipments), show dummy data
                 const historyContainer = document.getElementById('history-cards-container');
                 const activeContainer = document.getElementById('active-status-container');
                 if (historyContainer) {
                     historyContainer.innerHTML = `
-                        <div style="background-color: #ffffff; border-radius: 16px; padding: 24px; margin-bottom: 24px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'; this.style.borderColor='#e2e8f0'">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-                                <div>
-                                    <div style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px;">Nomor Resi</div>
-                                    <h3 style="margin: 0; color: #0f172a; font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                                        LKT-H9X7Y2
-                                        <i class="fas fa-copy" style="font-size: 0.9rem; color: #94a3b8; cursor: pointer;" title="Salin Resi"></i>
-                                    </h3>
-                                </div>
-                                <span style="background: #10b98115; color: #10b981; border: 1px solid #10b98140; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px;">
-                                    <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-                                    SELESAI
-                                </span>
-                            </div>
-                            
-                            <div style="display: flex; gap: 24px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px dashed #e2e8f0;">
-                                <div style="flex: 1;">
-                                    <div style="display: flex; gap: 12px;">
-                                        <div style="margin-top: 2px;">
-                                            <div style="width: 32px; height: 32px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #64748b;">
-                                                <i class="fas fa-user"></i>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Penerima</p>
-                                            <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">Budi Santoso</p>
-                                            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #475569; line-height: 1.4;">Jl. Sudirman No. 10...</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div style="width: 1px; background: #e2e8f0;"></div>
-                                
-                                <div style="flex: 1;">
-                                    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: #eff6ff; display: flex; align-items: center; justify-content: center; color: #3b82f6;">
-                                            <i class="fas fa-truck-fast"></i>
-                                        </div>
-                                        <div>
-                                            <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Layanan</p>
-                                            <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">Cargo</p>
-                                        </div>
-                                    </div>
-                                    <div style="display: flex; gap: 12px;">
-                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: #fef2f2; display: flex; align-items: center; justify-content: center; color: #ef4444;">
-                                            <i class="fas fa-weight-hanging"></i>
-                                        </div>
-                                        <div>
-                                            <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Berat</p>
-                                            <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">5.0 kg</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div style="display: flex; gap: 12px;">
-                                <button onclick="openDetailModal('LKT-H9X7Y2')" style="flex: 1; padding: 12px; border: 1px solid #3b82f6; background: white; color: #3b82f6; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#3b82f6'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='#3b82f6'"><i class="fas fa-map-marked-alt"></i> Peta & Detail Riwayat</button>
-                                <button onclick="showTipDialog('LKT-H9X7Y2')" style="flex: 1; padding: 12px; border: none; background: #10b981; color: white; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'"><i class="fas fa-hand-holding-dollar"></i> Beri Tip Kurir</button>
-                            </div>
+                        <div style="text-align: center; padding: 48px 20px; color: var(--text-secondary);">
+                            <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;"></i>
+                            <p style="font-weight: 600; margin: 0;">Belum ada riwayat pengiriman.</p>
                         </div>
                     `;
                 }
-                if (activeContainer) activeContainer.innerHTML = '<p style="text-align:center; padding: 20px; color: var(--text-secondary);">Tidak ada pengiriman aktif</p>';
+                if (activeContainer) {
+                    activeContainer.innerHTML = `
+                        <div style="text-align: center; padding: 48px 20px; color: var(--text-secondary);">
+                            <i class="fas fa-route" style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;"></i>
+                            <p style="font-weight: 600; margin: 0;">Tidak ada pengiriman aktif.</p>
+                        </div>
+                    `;
+                }
             }
         })
         .catch(err => {
             console.error('Error fetching delivery data:', err);
-            // Fallback to dummy data on network error
             const historyContainer = document.getElementById('history-cards-container');
             const activeContainer = document.getElementById('active-status-container');
             if (historyContainer) {
                 historyContainer.innerHTML = `
-                    <div style="background-color: #ffffff; border-radius: 16px; padding: 24px; margin-bottom: 24px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'; this.style.borderColor='#e2e8f0'">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-                            <div>
-                                <div style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px;">Nomor Resi</div>
-                                <h3 style="margin: 0; color: #0f172a; font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                                    LKT-H9X7Y2
-                                    <i class="fas fa-copy" style="font-size: 0.9rem; color: #94a3b8; cursor: pointer;" title="Salin Resi"></i>
-                                </h3>
-                            </div>
-                            <span style="background: #10b98115; color: #10b981; border: 1px solid #10b98140; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px;">
-                                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-                                SELESAI
-                            </span>
-                        </div>
-                        
-                        <div style="display: flex; gap: 24px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px dashed #e2e8f0;">
-                            <div style="flex: 1;">
-                                <div style="display: flex; gap: 12px;">
-                                    <div style="margin-top: 2px;">
-                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #64748b;">
-                                            <i class="fas fa-user"></i>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Penerima</p>
-                                        <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">Budi Santoso</p>
-                                        <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #475569; line-height: 1.4;">Jl. Sudirman No. 10...</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div style="width: 1px; background: #e2e8f0;"></div>
-                            
-                            <div style="flex: 1;">
-                                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #eff6ff; display: flex; align-items: center; justify-content: center; color: #3b82f6;">
-                                        <i class="fas fa-truck-fast"></i>
-                                    </div>
-                                    <div>
-                                        <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Layanan</p>
-                                        <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">Cargo</p>
-                                    </div>
-                                </div>
-                                <div style="display: flex; gap: 12px;">
-                                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #fef2f2; display: flex; align-items: center; justify-content: center; color: #ef4444;">
-                                        <i class="fas fa-weight-hanging"></i>
-                                    </div>
-                                    <div>
-                                        <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Berat</p>
-                                        <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">5.0 kg</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; gap: 12px;">
-                            <button onclick="openDetailModal('LKT-H9X7Y2')" style="flex: 1; padding: 12px; border: 1px solid #3b82f6; background: white; color: #3b82f6; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#3b82f6'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='#3b82f6'"><i class="fas fa-map-marked-alt"></i> Peta & Detail Riwayat</button>
-                            <button onclick="showTipDialog('LKT-H9X7Y2')" style="flex: 1; padding: 12px; border: none; background: #10b981; color: white; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'"><i class="fas fa-hand-holding-dollar"></i> Beri Tip Kurir</button>
-                        </div>
+                    <div style="text-align: center; padding: 48px 20px; color: var(--text-secondary);">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 16px; color: #f59e0b;"></i>
+                        <p style="font-weight: 600; margin: 0;">Gagal memuat data pengiriman dari server.</p>
                     </div>
                 `;
             }
-            if (activeContainer) activeContainer.innerHTML = '<p style="text-align:center; padding: 20px; color: var(--text-secondary);">Tidak ada pengiriman aktif</p>';
+            if (activeContainer) {
+                activeContainer.innerHTML = `
+                    <div style="text-align: center; padding: 48px 20px; color: var(--text-secondary);">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 16px; color: #f59e0b;"></i>
+                        <p style="font-weight: 600; margin: 0;">Gagal memuat data aktif dari server.</p>
+                    </div>
+                `;
+            }
         });
 }
 
-const dummyShipments = [
-    {
-        resi: "LKT-A8F9K2",
-        penerima_nama: "Rian Hidayat",
-        penerima_alamat: "Jl. Merdeka No. 45, Bandung, Jawa Barat",
-        berat: "2.5 kg",
-        layanan: "Reguler",
-        status: "transit",
-        riwayat: [
-            { status: "Pending", lokasi: "Sistem", waktu_update: "2026-05-19 01:10", lat: -6.200000, lng: 106.816666 },
-            { status: "Menunggu Pickup", lokasi: "Gudang Penjual (Jakarta)", waktu_update: "2026-05-19 01:15", lat: -6.21462, lng: 106.84513 },
-            { status: "Transit", lokasi: "Hub Transit (Cikarang)", waktu_update: "2026-05-19 14:30", lat: -6.3475, lng: 107.1955 },
-            { status: "Transit", lokasi: "Menuju Bandung (KM 72)", waktu_update: "2026-05-19 18:30", lat: -6.5361, lng: 107.4336 } // Koordinat Toll Cipularang
-        ],
-        tujuan_lat: -6.914744,
-        tujuan_lng: 107.609810
-    },
-    {
-        resi: "LKT-B4C2M9",
-        penerima_nama: "Siti Aminah",
-        penerima_alamat: "Perumahan Indah Blok C2, Surabaya, Jawa Timur",
-        berat: "1.2 kg",
-        layanan: "Express",
-        status: "menunggu pickup",
-        riwayat: [
-            { status: "Pending", lokasi: "Sistem", waktu_update: "2026-05-20 08:00", lat: -6.914744, lng: 107.609810 },
-            { status: "Menunggu Pickup", lokasi: "Distributor Sepatu (Bandung)", waktu_update: "2026-05-20 08:05", lat: -6.914744, lng: 107.609810 }
-        ],
-        tujuan_lat: -7.250445,
-        tujuan_lng: 112.768845
-    }
-];
+const dummyShipments = [];
 
 let currentActiveResi = null;
 let leafletMap = null;
 let mapMarkers = [];
 let polylineLayer = null;
-
-function renderDashboard(data) {
-    const listContainer = document.getElementById('active-status-container');
-    if (!listContainer) return;
-
-    listContainer.innerHTML = '';
-
-    data.forEach(shipment => {
-        let badgeColor = '#6b7280';
-        if (shipment.status === 'delivered') badgeColor = '#10b981';
-        else if (shipment.status === 'transit') badgeColor = '#3b82f6';
-        else if (shipment.status === 'menunggu pickup') badgeColor = '#f59e0b';
-
-        const cardHTML = `
-            <div style="background-color: #ffffff; border-radius: 16px; padding: 24px; margin-bottom: 24px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'; this.style.borderColor='#e2e8f0'">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-                    <div>
-                        <div style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px;">Nomor Resi</div>
-                        <h3 style="margin: 0; color: #0f172a; font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                            ${shipment.resi}
-                            <i class="fas fa-copy" style="font-size: 0.9rem; color: #94a3b8; cursor: pointer;" title="Salin Resi"></i>
-                        </h3>
-                    </div>
-                    <span style="background: ${badgeColor}15; color: ${badgeColor}; border: 1px solid ${badgeColor}40; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px;">
-                        <span style="width: 6px; height: 6px; border-radius: 50%; background: ${badgeColor}; display: inline-block;"></span>
-                        ${shipment.status}
-                    </span>
-                </div>
-                
-                <div style="display: flex; gap: 24px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px dashed #e2e8f0;">
-                    <div style="flex: 1;">
-                        <div style="display: flex; gap: 12px;">
-                            <div style="margin-top: 2px;">
-                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #64748b;">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                            </div>
-                            <div>
-                                <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Penerima</p>
-                                <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">${shipment.penerima_nama}</p>
-                                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #475569; line-height: 1.4;">${shipment.penerima_alamat}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="width: 1px; background: #e2e8f0;"></div>
-                    
-                    <div style="flex: 1;">
-                        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                            <div style="width: 32px; height: 32px; border-radius: 50%; background: #eff6ff; display: flex; align-items: center; justify-content: center; color: #3b82f6;">
-                                <i class="fas fa-truck-fast"></i>
-                            </div>
-                            <div>
-                                <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Layanan</p>
-                                <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">${shipment.layanan}</p>
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 12px;">
-                            <div style="width: 32px; height: 32px; border-radius: 50%; background: #fef2f2; display: flex; align-items: center; justify-content: center; color: #ef4444;">
-                                <i class="fas fa-weight-hanging"></i>
-                            </div>
-                            <div>
-                                <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Berat</p>
-                                <p style="margin: 2px 0 0 0; font-weight: 600; color: #1e293b; font-size: 0.95rem;">${shipment.berat}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="display: flex; justify-content: flex-end;">
-                    <button onclick="openDetailModal('${shipment.resi}')" style="cursor: pointer; padding: 10px 20px; background-color: white; color: #3b82f6; border: 1px solid #3b82f6; border-radius: 8px; font-weight: 700; font-size: 0.9rem; transition: all 0.2s;" onmouseover="this.style.background='#3b82f6'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='#3b82f6'">
-                        Lihat Detail <i class="fas fa-arrow-right" style="margin-left: 6px; font-size: 0.8rem;"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        listContainer.insertAdjacentHTML('beforeend', cardHTML);
-    });
-}
 
 function getCoordinatesForLocation(lokasi) {
     const loc = lokasi.toLowerCase();
@@ -792,7 +623,7 @@ function openDetailModal(resi) {
         didOpen: () => { Swal.showLoading(); }
     });
 
-    fetch('http://localhost/logistikita/index.php?request=api/logistikita/tracking_status&resi=' + resi)
+    fetch('index.php?request=api/logistikita/tracking_status&resi=' + resi)
         .then(res => res.json())
         .then(data => {
             Swal.close();
@@ -825,6 +656,17 @@ function openDetailModal(resi) {
                         shipment.riwayat.forEach((log, index) => {
                             const isLast = index === 0; // Karena terurut DESC (terbaru di atas)
                             const isFirst = index === shipment.riwayat.length - 1;
+                            
+                            const logStatusNames = {
+                                'pending': 'Pesanan Dibuat / Menunggu Verifikasi',
+                                'menunggu_pickup': 'Disetujui Operator (Menunggu Pickup)',
+                                'transit': 'Transit Hub Terminal',
+                                'delivery': 'Dalam Pengiriman Kurir',
+                                'delivered': 'Paket Diterima Konsumen',
+                                'batal': 'Pesanan Dibatalkan'
+                            };
+                            const displayLogStatus = logStatusNames[log.status] || log.status.toUpperCase();
+
                             const timelineNodeHTML = `
                                 <div style="position: relative; padding-left: 28px; padding-bottom: ${isFirst ? '0' : '24px'}; text-align: left;">
                                     ${!isFirst ? '<div style="position: absolute; left: 6px; top: 20px; bottom: 0; width: 2px; background-color: #e2e8f0;"></div>' : ''}
@@ -832,7 +674,7 @@ function openDetailModal(resi) {
                                     <div style="position: absolute; left: 0; top: 4px; width: 14px; height: 14px; background-color: white; border: 3px solid #3b82f6; border-radius: 50%; z-index: 10;"></div>
                                     
                                     <div style="background: ${index === 0 ? '#eff6ff' : 'transparent'}; padding: ${index === 0 ? '12px' : '0'}; border-radius: 8px; border: ${index === 0 ? '1px solid #bfdbfe' : 'none'};">
-                                        <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 700; color: #0f172a;">${log.status.toUpperCase()}</h4>
+                                        <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 700; color: #0f172a;">${displayLogStatus}</h4>
                                         <div style="display: flex; flex-direction: column; gap: 4px;">
                                             <span style="font-size: 0.85rem; color: #475569; display: flex; align-items: center; gap: 6px;">
                                                 <i class="fas fa-map-marker-alt" style="color: #94a3b8; width: 14px; text-align: center;"></i> ${log.lokasi}
@@ -986,7 +828,7 @@ function cancelOrder() {
                 didOpen: () => { Swal.showLoading(); }
             });
             
-            fetch('http://localhost/logistikita/index.php?request=api/logistikita/batalkan_pengiriman', {
+            fetch('index.php?request=api/logistikita/batalkan_pengiriman', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ resi: currentActiveResi, email: user.email })
@@ -1138,7 +980,7 @@ function showTipDialog(resi) {
                 didOpen: () => { Swal.showLoading(); }
             });
 
-            fetch('http://localhost/logistikita/index.php?request=api/logistikita/beri_tip', {
+            fetch('index.php?request=api/logistikita/beri_tip', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ resi: resi, amount: result.value, email: user.email })
@@ -1195,3 +1037,12 @@ function backToHistoryList() {
 
     window.scrollTo({ top: 300, behavior: 'smooth' });
 }
+
+function logoutUser() {
+    localStorage.removeItem('user');
+    window.location.href = 'auth';
+}
+window.logoutUser = logoutUser;
+window.backToHistoryList = backToHistoryList;
+
+document.addEventListener('DOMContentLoaded', loadUserData);

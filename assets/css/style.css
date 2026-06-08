@@ -1478,6 +1478,21 @@ footer {
     color: #854d0e;
 }
 
+.status-badge.processing {
+    background-color: #fef3c7;
+    color: #d97706;
+}
+
+.status-badge.menunggu_pickup {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-badge.batal {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
 .form-section-title {
     font-weight: 800;
     margin-bottom: 24px;
