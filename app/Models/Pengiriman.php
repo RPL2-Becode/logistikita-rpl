@@ -116,7 +116,7 @@ class Pengiriman {
             $this->addRiwayat($id, $status, $lokasi, $keterangan);
             $this->triggerWebhookCallback($resi, $status, $shipment['ext_order_id'] ?? null);
             
-            // Log ke Pembukuan
+
             $status_barang = 'transit_hub';
             if ($status === 'delivered') {
                 $status_barang = 'diterima_konsumen';
