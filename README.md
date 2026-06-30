@@ -1,6 +1,6 @@
 # LogistiKita - Ekspedisi & Distribusi Logistik Modern (Kelompok 5)
 
-LogistiKita adalah Sistem Informasi Manajemen Ekspedisi dan Distribusi Logistik berbasis web yang dirancang sebagai tulang punggung pengiriman fisik dalam ekosistem digital terintegrasi. Sistem ini berfungsi sebagai *Physical Supply Chain Resolver* yang menghubungkan Marketplace atau SupplierHub dengan otoritas keuangan pusat (SmartBank) melalui perantara API Gateway.
+LogistiKita adalah Sistem Informasi Manajemen Ekspedisi dan Distribusi Logistik berbasis web yang dibangun sebagai solusi komprehensif untuk mendigitalkan proses pemindahan barang secara fisik. Dalam lanskap industri digital, perdagangan elektronik (e-commerce) tidak akan pernah terwujud tanpa adanya tulang punggung distribusi yang solid. LogistiKita hadir untuk mengisi ruang tersebut, bertindak sebagai mesin penggerak (engine) yang mengubah kesepakatan jual-beli di dunia maya menjadi serangkaian aksi pemindahan barang yang dapat diukur, dilacak, dan divalidasi di dunia nyata. Aplikasi ini didesain menggunakan paradigma arsitektur Model-View-Controller (MVC) yang memisahkan logika bisnis (backend), manajemen basis data, dan antarmuka pengguna (frontend) secara tegas. Pemisahan ini memastikan bahwa sistem mampu memproses ratusan hingga ribuan permintaan pengiriman secara serentak tanpa mengalami penurunan performa yang berarti.
 
 ---
 
